@@ -43,3 +43,7 @@ SparkStreaming（1） ~ 编程指南
 
 * 补全第二点中的说明， SparkStreaming kafka 究竟如何保存数据 offset。
 
+待完善8
+
+* 性能调优 介绍链接。
+
