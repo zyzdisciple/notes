@@ -20,3 +20,26 @@ SparkStreaming（1） ~ 编程指南
 待完善4
 
 * 验证transform相关
+
+待完善5
+
+* Spark cache的真正时机
+
+    如果有:
+
+        RDD.filter(1).cache();
+        RDD.filter(2).cahce();
+        RDD.foreach();
+
+    其中filter(1) 会被执行几次？ 真正的cache发生在什么时候？
+
+待完善6
+
+* 完善 standAlone 集群模式， 及 错误自启动。
+
+待完善7
+
+* 对于 kafka 如果是相同的 client 不同的 程序， 是否能够延续上次的 offset继续执行？
+
+* 补全第二点中的说明， SparkStreaming kafka 究竟如何保存数据 offset。
+
