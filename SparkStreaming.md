@@ -169,8 +169,6 @@ Spark Streaming 提供了两种内置的 streaming source(流的数据源).
 
 * Advanced sources(高级的数据源):像 Kafka,Flume,Kinesis,等等这样的数据源.可以通过对应的maven repository 找到依赖.
 
-//待完善1
-
 需要注意到的是, 如果你想要在你的流处理程序中并行的接收多个数据流,你可以创建多个 input DStreams.这将创建同时接收多个数据流的多个 receivers(接收器),然而,一个 Spark 的 worker/executor 是一个长期运行的任务(task),因此它将占用分配给 Spark Streaming 的应用程序的所有核中的一个核(core).
 
 因此,需要记住,一个 Spark Streaming 应用需要分配足够的核(core)(或线程(threads),如果本地运行的话)来处理所接收的数据,以及来运行接收器(receiver(s)).
@@ -178,6 +176,14 @@ Spark Streaming 提供了两种内置的 streaming source(流的数据源).
 因此相应的就需要在创建master的时候 不要使用local[1] 或 local 仅分配一个线程, 这将会使得receiver得到一个线程 而对应的程序则没有线程可以处理.
 
 在集群模式下, 则需要分配适当的核心数.
+
+<font color="orange">
+
+但问题在于,我个人测试过 local[1] 与 在 standalone的集群模式下降 core总数设定为1, 均没有发现 处理程序 无法执行的问题.
+
+并且 driver main程序所在的线程 与 executor线程不是同一个.
+
+</font>
 
 ## Basic Sources
 
@@ -249,13 +255,11 @@ Spark Streaming 提供了两种内置的 streaming source(流的数据源).
 
 ## Advanced Sources(高级数据源)
 
-//待完善2
-
 Kafka: Spark Streaming 2.4.3 要求 Kafka versions 0.8.2.1 以上版本.
 
 官方参考链接: [Kafka Integration Guide](http://spark.apache.org/docs/latest/streaming-kafka-0-10-integration.html)
 
-个人参考链接: []
+> 个人参考链接: [SparkStreaming-Kafka集成](https://www.cnblogs.com/zyzdisciple/p/11578462.html)
 
 ## Custom Sources(自定义数据源)
 
@@ -280,8 +284,6 @@ receiver的大致创建过程在上面已经提到过了.
 有两种receiver, 可靠性, 不可靠性, 区别就在于对于数据的失败处理上, 可靠receiver并不会丢失数据,而不可靠receiver则不对 数据安全性 提供任何保障.
 
 从数据源上来说, 本身就存在两种数据源, 如 kafka flume所提供的可靠性数据源.能够对 下发处理数据的 响应  做出相应的处理. 而不可靠数据源, 只负责下发数据.
-
-//待完善3
 
 如果想要实现一个 可靠的 receiver, 需要注意的是, 即使采用的是可靠数据源, 也不一定就是可靠的receiver.
 
@@ -362,8 +364,6 @@ mapWithstate底层是创建了一个MapWithStateRDD,存的数据是MapWithStateR
 
 transform方法在每个批次都会进行调用, 因此可以根据不同时间进行相应的处理.
 
-//待完善4
-
 但需要注意的一点是:
 
 虽然transform是  transformation算子, 但是 并不意味着其中的方法必然是在job分配完, 真实提交之后才执行.
@@ -373,6 +373,10 @@ transform方法在每个批次都会进行调用, 因此可以根据不同时间
 > 参考链接: [Spark Streaming 误用.transform(func)函数导致的问题解析](https://www.jianshu.com/p/69c64a920da0)
 
 导致其问题的根本原因就在于 在 transform中执行的 action操作, 是会在 生成job的时候执行的.
+
+经过测试，还会有这样一点问题：
+
+在 transform之前的代码， 都会在
 
 ### Window
 
@@ -552,7 +556,7 @@ DStreams 通过输出操作进行延迟执行,就像 RDD 由 RDD 操作懒惰地
 
 Spark SQL在以后的篇章在详细介绍,在流数据上使用 DataFrame 和 SQL也是一件很简单的事情.
 
-首先需要通过 SparkStreaming 获取对应的 SparkContext, 而后通过SparkContext创建 SparkSession. 并且必须创建, 这样就可以在 driver出现故障的时候, 重新启动. 我们可以将 Spark RDD 转换成 DataFrame,注册为临时表,而后进行SQL查询. 案例代码如下：
+首先需要通过 SparkStreaming 获取对应的 SparkContext, 而后通过SparkContext创建 SparkSession. 并且必须创建, 这样就可以在 driver出现故障的时候, 重新启动. 我们可以将 Spark RDD 转换成 DataFrame,注册为临时表,而后进行SQL查询. 案例代码如下:
 
     /** Java Bean class for converting RDD to DataFrame */
     public class JavaRow implements java.io.Serializable {
@@ -594,7 +598,7 @@ Spark SQL在以后的篇章在详细介绍,在流数据上使用 DataFrame 和 S
         wordCountsDataFrame.show();
     });
 
-代码全连接： [source code](https://github.com/apache/spark/blob/v2.4.4/examples/src/main/java/org/apache/spark/examples/streaming/JavaSqlNetworkWordCount.java)
+代码全连接: [source code](https://github.com/apache/spark/blob/v2.4.4/examples/src/main/java/org/apache/spark/examples/streaming/JavaSqlNetworkWordCount.java)
 
 并不仅仅是这些, SparkSQL的另一大优点是, 能够跨线程 访问 其他Streaming Data定义的 DataFrame.
 
@@ -606,21 +610,44 @@ Spark SQL在以后的篇章在详细介绍,在流数据上使用 DataFrame 和 S
 
 与 RDD 类似,DStreams 还允许开发人员将流的数据保留在内存中.也就是说,在 DStream 上使用 persist() 方法会自动将该 DStream 的每个 RDD 保留在内存中.如果 DStream 中的数据将被多次计算(例如,相同数据上的多个操作),这将非常有用.对于基于窗口的操作,如 reduceByWindow 和 reduceByKeyAndWindow 以及基于状态的操作,如 updateStateByKey,这是隐含的.因此,基于窗口的操作生成的 DStream 会自动保存在内存中,而不需要开发人员调用 persist().
 
-对于通过网络接收数据(例如：Kafka,Flume,sockets 等)的输入流,默认持久性级别被设置为将数据复制到两个节点进行容错.
+对于通过网络接收数据(例如:Kafka,Flume,sockets 等)的输入流,默认持久性级别被设置为将数据复制到两个节点进行容错.
 
 请注意,与 RDD 不同,DStreams 的默认持久性级别将数据序列化在内存中.
-
-//待完善5 
 
 spark的计算是lazy的,只有在执行action时才真正去计算每个RDD的数据.要使RDD缓存,必须在执行某个action之前定义RDD.persist().
 
 而在使用完毕之后, 最好也能够主动调用 unpersist() 释放内存, 当然, 并不意味着, 如果不主动调用, 就不会释放内存, 它会遵循 LRU原则, 进行内存的释放, 无效cache的删除.
 
->参考：[Spark cache的用法及其误区分析](https://www.imooc.com/article/35448)
+>参考:[Spark cache的用法及其误区分析](https://www.imooc.com/article/35448)
+
+在参考文档中,有一点我有不同的意见:
+
+> cache之后一定不能立即有其它算子,不能直接去接算子.因为在实际工作的时候,cache后有算子的话,它每次都会重新触发这个计算过程.
+
+测试代码如下:
+
+    JavaSparkContext jsc = createJavaSparkContext();
+    List<Integer> list = new ArrayList<>();
+    for (int i = 0; i < 16; i++) {
+        list.add(i);
+    }
+
+    JavaRDD<Integer> rdd = jsc.parallelize(list);
+    JavaRDD<Integer> rdd1 = rdd.filter(item -> {
+        System.out.println("rdd1:" + item);
+        return item > 3;
+    }).cache();
+    JavaRDD<Integer> rdd2 = rdd1.filter(item -> {
+        System.out.println("rdd2:" + item);
+        return item > 6;
+    }).cache();
+    rdd2.count();
+
+输出结果并没有将 rdd1:1 重复输出两遍,也即意味着 cache之后有算子, 只会将cache之后的算子进行计算, 而已经计算过的并不会导致重复计算. 因此我们可以放心使用.
 
 ## CheckPoint机制
 
-鉴于 SparkStreaming 必须永久运行, 因此对于 <font color="orange">程序无关的错误, 如系统错误, JVM崩溃等问题.</font>具有可恢复的功能.因此 Spark必须保存部分信息, 到容错存储系统. check point有两种类型：
+鉴于 SparkStreaming 必须永久运行, 因此对于 <font color="orange">程序无关的错误, 如系统错误, JVM崩溃等问题.</font>具有可恢复的功能.因此 Spark必须保存部分信息, 到容错存储系统. check point有两种类型:
 
 * Metadata checkpointing - 将定义 streaming 计算的信息保存到容错存储(如 HDFS)中,元数据包括:
 
@@ -646,7 +673,7 @@ checkPoint 并非总是必要的,当我们依赖的是可靠数据源,(又或者
 
 而后调用 streamingContext.checkpoint(checkpointDirectory), 通过这种方式 就可以使用上面提到的 updateStateByKey 或 reduceByKeyAndWindow(具有反向功能) 这类的状态计算.
 
-另外,如果要使应用程序从 driver 故障中恢复,您应该重写 streaming：
+另外,如果要使应用程序从 driver 故障中恢复,您应该重写 streaming:
 
 * 当程序第一次启动时,它将创建一个新的 StreamingContext,设置所有流,然后调用 start().
 * 当程序在失败后重新启动时,它将从 checkpoint 目录中的 checkpoint 数据重新创建一个 StreamingContext.
@@ -734,7 +761,7 @@ checkPoint 并非总是必要的,当我们依赖的是可靠数据源,(又或者
 
 ## Spark 部署
 
-要运行Spark 应用程序, 需要以下功能：
+要运行Spark 应用程序, 需要以下功能:
 
 1. 集群管理器, 有这样几种
 
@@ -749,7 +776,7 @@ checkPoint 并非总是必要的,当我们依赖的是可靠数据源,(又或者
 
 3. 为 executor 配置足够的内存 - 由于接收到的数据必须存储在内存中,所以 executor 必须配置足够的内存来保存接收到的数据.请注意,如果您正在进行10分钟的窗口操作,系统必须至少保留最近10分钟的内存中的数据.因此,应用程序的内存要求取决于其中使用的操作.
 
-4. 配置 checkpoint - 如果 streaming 应用程序需要它,则 Hadoop API 容错存储(例如：HDFS,S3等)中的目录必须配置为 checkpoint 目录,并且流程应用程序以 checkpoint 信息的方式编写Streaming代码.
+4. 配置 checkpoint - 如果 streaming 应用程序需要它,则 Hadoop API 容错存储(例如:HDFS,S3等)中的目录必须配置为 checkpoint 目录,并且流程应用程序以 checkpoint 信息的方式编写Streaming代码.
 
 //待完善6
 
@@ -793,7 +820,7 @@ checkPoint 并非总是必要的,当我们依赖的是可靠数据源,(又或者
 
 ## 升级应用程序代码
 
-有两种处理策略：
+有两种处理策略:
 
 1. 新旧代码并行运行, 直到你认为可以的时候, 停掉原有代码.
 
@@ -806,7 +833,7 @@ checkPoint 并非总是必要的,当我们依赖的是可靠数据源,(又或者
 
 ## 性能调优
 
-性能调优的核心在于：
+性能调优的核心在于:
 
 1. 减少数据处理的时间
 2. 设定合理的批处理间隔
@@ -825,7 +852,7 @@ checkPoint 并非总是必要的,当我们依赖的是可靠数据源,(又或者
 
 注意每个 input DStream 创建接收 single stream of data(单个数据流)的 single receiver(单个接收器)(在 worker 上运行).因此,可以通过创建多个 input DStreams 来实现 Receiving multiple data streams(接收多个数据流)并配置它们以从 source(s) 接收 data stream(数据流)的 different partitions(不同分区).
 
-例如,接收 two topics of data(两个数据主题)的单个Kafka input DStream 可以分为两个 Kafka input streams(输入流),每个只接收一个 topic(主题).这将运行两个 receivers(接收器),允许 in parallel(并行)接收数据,从而提高 overall throughput(总体吞吐量).这些 multiple DStreams 可以 unioned(联合起来)创建一个 single DStream.然后 transformations(转化)为应用于 single input DStream 可以应用于 unified stream.如下这样做：
+例如,接收 two topics of data(两个数据主题)的单个Kafka input DStream 可以分为两个 Kafka input streams(输入流),每个只接收一个 topic(主题).这将运行两个 receivers(接收器),允许 in parallel(并行)接收数据,从而提高 overall throughput(总体吞吐量).这些 multiple DStreams 可以 unioned(联合起来)创建一个 single DStream.然后 transformations(转化)为应用于 single input DStream 可以应用于 unified stream.如下这样做:
 
     int numStreams = 5;
     List<JavaPairDStream<String, String>> kafkaStreams = new ArrayList<>(numStreams);
@@ -835,9 +862,9 @@ checkPoint 并非总是必要的,当我们依赖的是可靠数据源,(又或者
     JavaPairDStream<String, String> unifiedStream = streamingContext.union(kafkaStreams.get(0), kafkaStreams.subList(1, kafkaStreams.size()));
     unifiedStream.print();
 
-与此同时, 需要关注的另一个参数是： spark.streaming.blockInterval
+与此同时, 需要关注的另一个参数是: spark.streaming.blockInterval
 
-spark.streaming.blockInterval：
+spark.streaming.blockInterval:
 
 Spark Receiver 接收到的数据 在存入 Spark之前 被进行 分块操作, 分块的间隔. 最低推荐是50ms.
 
@@ -851,7 +878,7 @@ Spark Receiver 接收到的数据 在存入 Spark之前 被进行 分块操作, 
 
 至于并行度的设置 
 
-> 参考：[Spark性能调优：合理设置并行度](https://blog.csdn.net/leen0304/article/details/78674073)
+> 参考:[Spark性能调优:合理设置并行度](https://blog.csdn.net/leen0304/article/details/78674073)
 
 网上类似的文章数不胜数, 就随便找了一篇.
 
@@ -859,75 +886,106 @@ Spark Receiver 接收到的数据 在存入 Spark之前 被进行 分块操作, 
 
 task数量,设置成spark Application 总cpu core数量的2~3倍 ,比如150个cpu core ,基本设置 task数量为 300~ 500, 与理性情况不同的,有些task 会运行快一点,比如50s 就完了,有些task 可能会慢一点,要一分半才运行完,所以如果你的task数量,刚好设置的跟cpu core 数量相同,可能会导致资源的浪费.
 
-### Data Serialization（数据序列化）
+### Data Serialization(数据序列化)
 
-可以通过调优 serialization formats（序列化格式）来减少数据 serialization（序列化）的开销。在 streaming 的情况下，有两种类型的数据被 serialized（序列化）。
+可以通过调优 serialization formats(序列化格式)来减少数据 serialization(序列化)的开销.在 streaming 的情况下,有两种类型的数据被 serialized(序列化).
 
-* Input data（输入数据）：默认情况下，通过 Receivers 接收的 input data（输入数据）通过 StorageLevel.MEMORY_AND_DISK_SER_2 存储在 executors 的内存中, 数据首先保留在内存中，并且只有在内存不足以容纳流计算所需的所有输入数据时才会 spilled over（溢出）到磁盘。这个序列化显然具有开销 - receiver（接收器）必须使接收的数据 deserialize（反序列化），并使用 Spark 的 serialization format（序列化格式）重新序列化它。
+* Input data(输入数据):默认情况下,通过 Receivers 接收的 input data(输入数据)通过 StorageLevel.MEMORY_AND_DISK_SER_2 存储在 executors 的内存中, 数据首先保留在内存中,并且只有在内存不足以容纳流计算所需的所有输入数据时才会 spilled over(溢出)到磁盘.这个序列化显然具有开销 - receiver(接收器)必须使接收的数据 deserialize(反序列化),并使用 Spark 的 serialization format(序列化格式)重新序列化它.
 
-* Persisted RDDs generated by Streaming Operations（流式操作生成的持久 RDDs）：通过 streaming computations（流式计算）生成的 RDD 可能会持久存储在内存中。例如，window operations（窗口操作）会将数据保留在内存中，因为它们将被处理多次。但是，与 StorageLevel.MEMORY_ONLY 的 Spark Core 默认情况不同，通过流式计算生成的持久化 RDD 将以 StorageLevel.MEMORY_ONLY_SER（即序列化），以最小化 GC 开销。
+* Persisted RDDs generated by Streaming Operations(流式操作生成的持久 RDDs):通过 streaming computations(流式计算)生成的 RDD 可能会持久存储在内存中.例如,window operations(窗口操作)会将数据保留在内存中,因为它们将被处理多次.但是,与 StorageLevel.MEMORY_ONLY 的 Spark Core 默认情况不同,通过流式计算生成的持久化 RDD 将以 StorageLevel.MEMORY_ONLY_SER(即序列化),以最小化 GC 开销.
 
 //待完善9
 
-在上述两种情况下， 使用kryo都可以有效减少CPU开销 和 内存开销。
+在上述两种情况下, 使用kryo都可以有效减少CPU开销 和 内存开销.
 
-然而， 序列化本身也是一种开销， 在需要保存的数据量不大， 内存足够的情况下：
+然而, 序列化本身也是一种开销, 在需要保存的数据量不大, 内存足够的情况下:
 
-可以将数据作为 deserialized objects（反序列化对象）持久化，而不会导致过多的 GC 开销。例如，如果你使用几秒钟的 batch intervals（批次间隔）并且没有 window operations（窗口操作），那么可以通过明确地相应地设置 storage level（存储级别）来尝试禁用 serialization in persisted data（持久化数据中的序列化）。这将减少由于序列化造成的 CPU 开销，潜在地提高性能，而不需要太多的 GC 开销。
+可以将数据作为 deserialized objects(反序列化对象)持久化,而不会导致过多的 GC 开销.例如,如果你使用几秒钟的 batch intervals(批次间隔)并且没有 window operations(窗口操作),那么可以通过明确地相应地设置 storage level(存储级别)来尝试禁用 serialization in persisted data(持久化数据中的序列化).这将减少由于序列化造成的 CPU 开销,潜在地提高性能,而不需要太多的 GC 开销.
 
-### Task Launching Overheads（任务启动开销）
+### Task Launching Overheads(任务启动开销)
 
-如果每秒启动的任务数量很高（比如每秒 50 个或更多），那么这个开销向 slaves 发送任务可能是重要的，并且将难以实现 sub-second latencies（次要的延迟）。可以通过以下更改减少开销:
+如果每秒启动的任务数量很高(比如每秒 50 个或更多),那么这个开销向 slaves 发送任务可能是重要的,并且将难以实现 sub-second latencies(次要的延迟).可以通过以下更改减少开销:
 
-* Execution mode（执行模式）：以 Standalone 模式 或 coarse-grained Mesos 模式运行 Spark 比 fine-grained Mesos 模式更好的任务启动时间。
+* Execution mode(执行模式):以 Standalone 模式 或 coarse-grained Mesos 模式运行 Spark 比 fine-grained Mesos 模式更好的任务启动时间.
 
-这些更改可能会将 批处理时间 缩短 100 毫秒，从而允许 sub-second batch size（次秒批次大小）是可行的。
+这些更改可能会将 批处理时间 缩短 100 毫秒,从而允许 sub-second batch size(次秒批次大小)是可行的.
 
-### Setting the Right Batch Interval（设置正确的批次间隔）
+### Setting the Right Batch Interval(设置正确的批次间隔)
 
-毫无疑问，如果想要系统 稳定可持续， 我们必须保证数据的流入流出速率保持均衡， 也即每批次接收的数据 与数据的 处理速度维持平衡。
+毫无疑问,如果想要系统 稳定可持续, 我们必须保证数据的流入流出速率保持均衡, 也即每批次接收的数据 与数据的 处理速度维持平衡.
 
-而调试速率的办法就是 增加batchInterval  和 减少 数据的流入速率， 通过 SparkUI Streaming页签下中可以观测到 处理延时， 也即 total delay列。
+而调试速率的办法就是 增加batchInterval  和 减少 数据的流入速率, 通过 SparkUI Streaming页签下中可以观测到 处理延时, 也即 total delay列.
 
-保持 total delay 小于等于 batch interval即可。
+保持 total delay 小于等于 batch interval即可.
 
-即使真实环境中， 数据有突发性也无需在乎， 只需要保证数据在整个运行期间的速率基本保持均衡即可。
+即使真实环境中, 数据有突发性也无需在乎, 只需要保证数据在整个运行期间的速率基本保持均衡即可.
 
-然而需要注意到的一点是， 增大 batchInterval 也意味着 有可能增加了内存开销。
+然而需要注意到的一点是, 增大 batchInterval 也意味着 有可能增加了内存开销.
 
-### Memory Tuning（内存调优）
+### Memory Tuning(内存调优)
 
-Spark Streaming application 所需的集群内存量在很大程度上取决于所使用的 transformations 类型。例如，如果要在最近 10 分钟的数据中使用 window operation（窗口操作），那么您的集群应该有足够的内存来容纳内存中 10 分钟的数据。或者如果要使用大量 keys 的 updateStateByKey，那么必要的内存将会很高。相反，如果你想做一个简单的 map-filter-store 操作，那么所需的内存就会很低。
+Spark Streaming application 所需的集群内存量在很大程度上取决于所使用的 transformations 类型.例如,如果要在最近 10 分钟的数据中使用 window operation(窗口操作),那么您的集群应该有足够的内存来容纳内存中 10 分钟的数据.或者如果要使用大量 keys 的 updateStateByKey,那么必要的内存将会很高.相反,如果你想做一个简单的 map-filter-store 操作,那么所需的内存就会很低.
 
 //待完善10 
 
-一般来说， receiver中接收到的数据， 在内存溢出的时候 会序列化 存储到硬盘中， 这可能会降低 streaming application 的性能，因此建议提供足够的内存以供使用。最好仔细查看内存使用量并相应地进行估算。
+一般来说, receiver中接收到的数据, 在内存溢出的时候 会序列化 存储到硬盘中, 这可能会降低 streaming application 的性能,因此建议提供足够的内存以供使用.最好仔细查看内存使用量并相应地进行估算.
 
-//待验证： 这是否意味着如果对数据的处理速率要求较低， 那么本身就可以容纳， 突发性 大批量数据流入？
+//待验证: 这是否意味着如果对数据的处理速率要求较低, 那么本身就可以容纳, 突发性 大批量数据流入？
 
-内存调优的另一个方面是 垃圾收集。对于需要低延迟的 streaming application，由 JVM 垃圾回收引起的大量暂停是不希望的。
+内存调优的另一个方面是 垃圾收集.对于需要低延迟的 streaming application,由 JVM 垃圾回收引起的大量暂停是不希望的.
 
 就以上几点来说:
 
-* DStreams 的持久性级别：如前面在 Data Serialization 部分中所述，input data 和 RDD 默认保持为 serialized bytes（序列化字节）。与 deserialized persistence（反序列化持久性）相比，这减少了内存使用量和 GC 开销。
+* DStreams 的持久性级别:如前面在 Data Serialization 部分中所述,input data 和 RDD 默认保持为 serialized bytes(序列化字节).与 deserialized persistence(反序列化持久性)相比,这减少了内存使用量和 GC 开销.
 
-    可以通过启用 Kryo serialization 进一步减少了序列化大小和内存使用。
+    可以通过启用 Kryo serialization 进一步减少了序列化大小和内存使用.
     
-    以及可以通过 compression（压缩）来实现内存使用的进一步减少（参见Spark配置 spark.rdd.compress），代价是 CPU 时间。
+    以及可以通过 compression(压缩)来实现内存使用的进一步减少(参见Spark配置 spark.rdd.compress),代价是 CPU 时间.
 
-* Clearing old data（清除旧数据）：默认情况下，DStream 转换生成的所有 input data 和 persisted RDDs 将自动清除。Spark Streaming 决定何时根据所使用的 transformations 来清除数据。例如，如果您使用 10 分钟的 window operation（窗口操作），则 Spark Streaming 将保留最近 10 分钟的数据，并主动丢弃旧数据。数据可以通过设置 streamingContext.remember 保持更长的持续时间（例如交互式查询旧数据， 之前提到的跨线程 访问StreamingData）。
+* Clearing old data(清除旧数据):默认情况下,DStream 转换生成的所有 input data 和 persisted RDDs 将自动清除.Spark Streaming 决定何时根据所使用的 transformations 来清除数据.例如,如果您使用 10 分钟的 window operation(窗口操作),则 Spark Streaming 将保留最近 10 分钟的数据,并主动丢弃旧数据.数据可以通过设置 streamingContext.remember 保持更长的持续时间(例如交互式查询旧数据, 之前提到的跨线程 访问StreamingData).
 
-* CMS Garbage Collector（CMS垃圾收集器）：强烈建议使用 concurrent mark-and-sweep GC，以保持 GC 相关的暂停始终如一。CMS的优点就是， 尽量减少暂停式GC，通过与任务并行执行的方式， 执行GC。即使 concurrent GC 已知可以减少 系统的整体处理吞吐量，但仍然建议实现更多一致的 batch processing times（批处理时间）。确保在 driver（ 在 spark-submit 中使用 --driver-java-options）和 executors（使用 Spark configuration spark.executor.extraJavaOptions）中设置 CMS GC。
+* CMS Garbage Collector(CMS垃圾收集器):强烈建议使用 concurrent mark-and-sweep GC,以保持 GC 相关的暂停始终如一.CMS的优点就是, 尽量减少暂停式GC,通过与任务并行执行的方式, 执行GC.即使 concurrent GC 已知可以减少 系统的整体处理吞吐量,但仍然建议实现更多一致的 batch processing times(批处理时间).确保在 driver( 在 spark-submit 中使用 --driver-java-options)和 executors(使用 Spark configuration spark.executor.extraJavaOptions)中设置 CMS GC.
 
     //待完善11
-    然而需要补充的是， 不确定G1是否更为合适？
+    然而需要补充的是, 不确定G1是否更为合适？
 
 
-* Other tips（其他提示）：为了进一步降低 GC 开销，以下是一些更多的提示。
+* Other tips(其他提示):为了进一步降低 GC 开销,以下是一些更多的提示.
 
-    使用 OFF_HEAP 存储级别的保持 RDDs，使用更小的 heap sizes 的 executors。这将降低每个 JVM heap 内的 GC 压力。
+    使用 OFF_HEAP 存储级别的保持 RDDs,使用更小的 heap sizes 的 executors.这将降低每个 JVM heap 内的 GC 压力.
 
+### 小结
 
+总结来说:
 
+* 每个DStream 都与 single receiver相关联.为了获得读取并行性,需要创建多个 receivers,即 multiple DStreams.receiver 在一个 executor 中运行.它占据一个 core(内核).确保在 receiver slots are booked 后有足够的内核进行处理,即 spark.cores.max 应该考虑 receiver slots.receivers 以循环方式分配给 executors.
+
+* 当从 stream source 接收到数据时,receiver 创建数据 blocks(块).每个 blockInterval(默认200ms) 毫秒生成一个新的数据块.在 N = batchInterval/blockInterval 的 batchInterval 期间创建 N 个数据块.这些块由当前 executor 的 BlockManager 分发给其他执行程序的 block managers.之后,在驱动程序上运行的 Network Input Tracker(网络输入跟踪器)通知有关进一步处理的块位置
+
+//待完善12
+
+* 在驱动程序中为在 batchInterval 期间创建的块创建一个 RDD.在 batchInterval 期间生成的块是 RDD 的 partitions.每个分区都是一个 spark 中的 task.blockInterval == batchinterval 意味着创建 single partition(单个分区),并且可能在本地进行处理.
+
+* 除非使用non-local(非本地调度)的方式, 否则这些块上的map任务都运行在执行器单元上(一个在接收数据块的位置,另一个在数据块被备份到的位置),而不会考虑block interval,而更大的 block interval 意味着更大的块.
+  
+    增大spark.locality.wait 即增加了处理 local node(本地节点)上的块的可能性.
+    
+    因此,需要在这两个参数之间找到平衡,以确保在本地处理较大的块.
+
+* 除了调整block interval 和 batch interval之外, 您可以通过调用 inputDstream.repartition(n) 来定义分区数.
+  
+  这样可以<font color="orange">随机重新组合</font> RDD 中的数据,创建 n 个分区以求更大的并行性.虽然是 shuffle 的代价.
+  
+  但是我们需要注意的是,如果数据本身每个partition中的数据有较强的关联性, 使用这种方法需要谨慎.
+
+  另外,需要考虑到的问题是,虽然我们有了更大的并行度, 但自身的集群资源是否支持这样高的并行性？即分配的核心数, executor数量是否足够？
+
+  RDD 的处理由 driver’s jobscheduler 作为一项工作安排.在给定的时间点,只有一个 job 是 active 的.因此,如果一个作业正在执行,则其他作业将排队.
+
+* 如果您有两个 dstream,将会有两个 RDDs 被创建,并且会创建两个任务,然后被一个接一个的调度.为了避免这种情况,你可以对这两个DStream执行union操作.这保证了两个DStream RDD会产生一个unionRDD,这个unionRDD会当做一个单独的job.但 RDD 的 partitioning(分区)不受影响.
+
+    而Spark Job: 每个Action算子本质上是执行了sc的runJob方法,这是一个重载方法.核心是交给DAGScheduler中的submitJob执行, 进而创建了不同的job.
+
+* 如果 批处理时间)超过 batchinterval(批次间隔),那么显然 receiver 的内存将会开始填满,最终会抛出 exceptions(最可能是 BlockNotFoundException).目前没有办法暂停 receiver.使用 SparkConf 配置 spark.streaming.receiver.maxRate,receiver 的 rate 可以受到限制.
 
 </font>
