@@ -376,7 +376,11 @@ transform方法在每个批次都会进行调用, 因此可以根据不同时间
 
 经过测试，还会有这样一点问题：
 
-在 transform之前的代码， 都会在
+首先transform 确确实实是会在 job生成的时候执行相关代码，如果有action的话， 并且使用的线程也是 job generator线程。 其次， 在transform之前的算子 执行次序是会在transform之前的， 如在transform 之前有过filter， 那么filter一定是在transform之前执行的。
+
+在这一点上， 我更倾向于 transform中的 action 提前引发了 transform算子之前的 算子 执行运算。而并没有等到 后续的 真正的 dstream的action触发时再执行。
+
+然而这并不意味着我们可以省掉后续的action算子。 如果没有后续的 dstream的action算子， 生成job的举动也不会有， 因此更不会触发transform中的action。
 
 ### Window
 
