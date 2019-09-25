@@ -1,10 +1,5 @@
 SparkStreaming（1） ~ 编程指南
 
-
-待完善4
-
-* 验证transform相关
-
 待完善6
 
 * 完善 standAlone 集群模式， 及 错误自启动。

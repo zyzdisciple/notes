@@ -179,9 +179,11 @@ Spark Streaming 提供了两种内置的 streaming source(流的数据源).
 
 <font color="orange">
 
-但问题在于,我个人测试过 local[1] 与 在 standalone的集群模式下降 core总数设定为1, 均没有发现 处理程序 无法执行的问题.
+而在使用中, 我的数据源是来自于kafka, 使用的是 kafkaUtils.createDirectStream. 而使用的 core数只有1, 或采用 local[1] 也能够正常运行, 这是不是说明上面的说法是错误的呢?
 
-并且 driver main程序所在的线程 与 executor线程不是同一个.
+并不是, 由KafkaUtils.createDirectStream 创建的是DStream, 而并非单纯的使用 receiver的方式实现.
+
+如果采用了自定义的 receiver, 那么此时通过 javaSparkContext.receiveData() 的方式创建流, 就至少需要两个线程, 或两个核心才能够正常运行.
 
 </font>
 
