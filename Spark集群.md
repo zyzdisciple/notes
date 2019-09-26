@@ -26,7 +26,7 @@ Stage | 每个 Job 被拆分成更小的被称作 stage（阶段）的 task（�
 >
 >中文链接: [集群模式概述](http://spark.apachecn.org/#/docs/12)
 
-Spark Application 在集群上作为独立的进程组来运行，在 main 程序中通过 SparkContext 来协调（称之为 driver 程序）。
+Spark Application 在集群上作为独立的进程组来运行，在 main程序(称之为 driver 程序） 中通过 SparkContext 来协调。
 
 具体来说，为了运行在集群上，SparkContext 可以连接至几种类型的 Cluster Manager（既可以用 Spark 自己的 Standlone Cluster Manager，或者 Mesos，也可以使用 YARN），用以在 applications 之间 分配资源。
 
@@ -43,6 +43,31 @@ Spark Application 在集群上作为独立的进程组来运行，在 main 程�
 3. Driver 程序必须在自己的生命周期内监听和接受来自它的 Executor 的连接请求。（配置: spark.driver.port) 同样的， 对于 worker node 而言, driver 程序也必须能够从网络中连接到.
 
 4. 因为 driver 负责在 整个集群上 调度任务， 因此能够与 worker node 处于同一局域网下是更优的选择(否则的话, 网络通信可能就成为了 整个Spark最大的时间开销)。如果你不喜欢发送请求到远程的集群，倒不如打开一个 RPC 至 driver 并让它就近提交操作而不是从很远的节点上运行一个 driver。
+   
+
+<font color="orange">
+
+在这里解决这样一个比较问题: master, worker, driver, executor之间是什么样的关系?
+
+</font>
+
+>可以参考:[Spark中master、worker、executor和driver的关系](https://blog.csdn.net/hongmofang10/article/details/84587262)
+
+上面的博客是我看了几篇之后, 觉得描述的比较准确的.
+
+那么一点点来说: spark的application 运行需要一个环境, 也即spark本身.
+
+而往往我们使用的就是集群环境, 集群环境中有多台机器, 多个进程, 这就需要一个管理器, 管理 多个master 和 多个 worker节点. 这个就是 cluster manager. 而我们直接通信的对象, 也就是 application 直接通信的对象 就是 master. 由master 来告诉我们 运行程序的资源究竟在哪里.
+
+一个集群中, 可以运行多个application.
+
+当我们提交application之后, 会接入master, master分配给我们资源, 也即进程, main程序所在的进程 就被称作是 driver. driver 分配任务, 协调各个executor, 运行各个 task的就是 executor.
+
+注意在这里并没有指定driver究竟会运行在哪个节点上.
+
+与选取的模式有关.
+
+![](http://spark.apache.org/docs/latest/img/cluster-overview.png)
 
 ## Cluster Manager 类型
 
@@ -145,15 +170,102 @@ URL有以下几种方式:
 
 ## Standalone 模式
 
+>官方文档: [Spark Standalone Mode](http://spark.apache.org/docs/latest/spark-standalone.html)
+>
+>中文文档: [Spark Standalone Mode](http://spark.apachecn.org/#/docs/15)
+
 由于在我们目前的项目中, 采用的就是 standalone模式, 因此只介绍这一种模式.
 
 Spark 提供了一个简单的 standalone 部署模式。你可以手动启动 master 和 worker 来启动 standalone 集群.
 
 安装 Spark Standalone 集群，只需要将编译好的版本部署在集群中的每个节点上。
 
+先回答一个问题:
 
+在当前模式下, driver 是选取 几个worker中的一个来运行相关进程, 并非是在master节点.
 
+### 启动Spark Cluster
 
+通常来说, 我使用的启动命令为:
+
+${SPARK_HOME}/sbin/start-all.sh
+
+会 加载配置文件, 启动 spark master, spark slaves.
+
+停止的时候, 也可以采用 stop-all.sh
+
+注意: 这些脚本必须在您想要运行 Spark master 的机器上执行，而不是您本地的机器。
+
+当然可以加入一部分配置文件, 指定参数配置:
+
+比较重要的或有趣的我会标注出来.
+
+1. conf/spark-env.sh
+
+    可以在复制 conf/spark-env.sh.template > spark-env.sh 中设置环境变量来进一步配置集群。
+
+    可接收参数有:
+
+    环境变量 | 含义
+    -|-|-|
+    <font color="orange">SPARK_MASTER_HOST</font> | 绑定 master 到一个指定的 hostname 或者 IP 地址
+    <font color="orange">SPARK_MASTER_PORT</font> | 在不同的端口上启动 master（默认：7077）
+    <font color="orange">SPARK_MASTER_WEBUI_PORT</font> | master的 web ui (默认: 8080)
+    <font color="orange">SPARK_MASTER_OPTS</font> | 仅应用到 master 上的配置属性，格式是 "-Dx=y"（默认是：none）, 可用参数在下面会提到.
+    SPARK_LOCAL_DIRS | Spark 中 "scratch" space（暂存空间）的目录，包括 map 的输出文件 和 存储在磁盘上的 RDDs, 我们知道内存溢出会根据策略, 有可能存储在磁盘上. 这必须在你的系统中的一个快速的(不太明白这个快速的, 是什么意思?)，本地的磁盘上。这也可以是逗号分隔的不同磁盘上的多个目录的列表。
+    SPARK_WORKER_CORES | 机器上 所有 Spark 应用程序可以使用的的 cores 的总数.（默认：全部的核可用）
+    SPARK_WORKER_MEMORY | 机器上的 所有的 spark applications 允许使用的 总的内存, 默认是 机器内存 - 1GB; 而单个application的内存配置是由 spark.executor.memory 所决定的.
+    SPARK_WORKER_PORT | spark worker的端口, 默认是 随机
+    SPARK_WORKER_WEBUI_PORT | spark worker 的 web ui 端口, 默认是 (8081)
+    SPARK_WORKER_DIR | 运行application所在的路径, 这个目录中包含日志和暂存空间（default：SPARK_HOME/work）
+    <font color="orange">SPARK_WORKER_OPTS</font> |	与 SPARK_MASTER_OPTS 类似, 不过是应用于 worker
+    SPARK_DAEMON_MEMORY | 分配给 Spark master 和 worker 守护进程的内存。（默认： 1g）
+    SPARK_DAEMON_JAVA_OPTS | Spark master 和 worker 守护进程的 JVM 选项，格式是 "-Dx=y"（默认：none）
+    SPARK_DAEMON_CLASSPATH | Spark master 和 worker 守护进程的 classPath (default: none).
+    SPARK_PUBLIC_DNS | Spark master 和 worker 的公开 DNS 名称(不是很理解)。（默认：none）
+
+    注意： 启动脚本现在还不支持 Windows。要在 Windows 上运行一个 Spark 集群，需要手动启动 master 和 workers。
+
+2. SPARK_MASTER_OPTS 参数
+
+    属性名 | 默认值 | 含义
+    -|-|-|
+    spark.deploy.retainedApplications | 200 | 在 web ui上最大展示的 已经完成的 application数量. 超过限制的会被从UI中丢弃.
+    spark.deploy.retainedDrivers | 200 | 展示已完成的 drivers 的最大数量。旧的 driver 会从 UI 删除掉以满足限制。
+    <font color="orange">spark.deploy.spreadOut</font> | true | cluster mananger 是否将 多个 application 分配到不同的节点上 还是 尽量使用 越少的 节点越好(即整合操作). 默认true是分配到不同节点上. 对于数据在本地的 HDFS 文件中, 一般是尽量分离会比较好, 而对于 计算密集型 任务 来说, 使用尽量少的节点是 一种更好的选择.
+    spark.deploy.defaultCores | (infinite) | 如果没有设置 spark.cores.max，在 Spark 的 standalone 模式下默认分配给应用程序的 cores（核）数。如果没有设置，application 将总是获得所有的可用核，除非application设置了 spark.cores.max。在共享集群中设置较低的核数，可用于防止用户 grabbing（抓取）整个集群.
+    spark.deploy.maxExecutorRetries | 10 |  executor 连续多次的最大失败次数, 一旦到达最大次数, cluster manager 将会 移除发生错误的 application. 如果 application 有任意正在运行的 executor 则永远不会移除. 如果一个应用程序经历过超过 spark.deploy.maxExecutorRetries 次的连续失败，在这期间没有executor成功开始运行，并且应用程序没有运行着的executor，然后 cluster manager 将会移除这个应用程序并将它标记为失败。如果要禁用功能的话, 设置为-1即可.
+    spark.worker.timeout | 60 | master 接收 worker 心跳的最大时间间隔, 单位 秒.
+
+3. SPARK_WORKER_OPTS 参数
+
+    属性名 | 默认值 | 含义
+    -|-|-|
+    <font color="orange">spark.worker.cleanup.enabled</font> | false | 允许定期清理 worker / application 目录. 仅在standalone模式有效,且仅对已经停止运行的 application有效.
+    <font color="orange">spark.worker.cleanup.interval</font> | 1800 (30 minutes) | 在本地机器上，多久去检测并清理一次，以秒计数.
+    <font color="orange">spark.worker.cleanup.appDataTtl</font> | 604800 (7 days, 7 * 24 * 3600) | 对于每一个worker, 允许目录存在的最大时间, 这应该取决于你磁盘 可分配的最大空间. 随着时间的推移, 这个工作目录会很快填满磁盘空间, 特别是如果您经常运行jobs.
+    spark.storage.cleanupFilesAfterExecutorExit | true | 在executor退出之后自动清除 工作目录下的 non-shuffle 文件(例如: 临时文件, shuffle blocks, 缓存的 RDD/broadcast blocks, spill files, 等等) of worker directories following executor exits. 注意与 `spark.worker.cleanup.enabled` 是不同的. 后者会清理所有超时的项目文件.仅在 standalone模式下有效.
+    spark.worker.ui.compressedLogFileLengthCacheSize | 100 | 对于压缩日志文件，只能通过未压缩文件来计算未压缩文件。Spark 缓存未压缩日志文件的文件大小。此属性控制缓存的大小.
+
+4. 要在 Spark 集群中运行一个应用程序，只需要简单地将 master 的 spark://IP:PORT URL.
+
+    要针对集群运行交互式 Spark shell，运行下面的命令：
+
+        ./bin/spark-shell --master spark://IP:PORT
+
+    可以通过指定 --total-executor-cores numCores 控制集群中使用的 总的 cores数量.
+
+### 提交application
+
+对于 standalone 集群, park 目前支持两种部署模式。在 client 模式下，driver 在与 client 提交应用程序相同的进程中启动。
+
+在 cluster 模式下，driver 是集群中的某个 Worker 中的进程中启动，并且 client 进程将会在完成提交应用程序的任务之后退出，而不需要等待应用程序完成再退出。
+
+如果应用程序是通过 Spark submit, application 会被 自动发送到所有的工作节点, 对于你所依赖的任何jar包, 可以通过 --jars 的方式传入, 多个jar之间用,分割. 但正如之前 高级依赖管理 中提到的, 并不支持目录形式.
+
+standalone cluster 模式支持 自动重启 application, 如果程序是以 非零代码退出的话. 只需要在 submit的时候加入 --supervise 标识即可.如果您想杀死一个重复失败的应用程序，您可以使用如下方式：
+
+    ./bin/spark-class org.apache.spark.deploy.Client kill <master url> <driver ID> 
 
 
 
