@@ -1,9 +1,5 @@
 SparkStreaming（1） ~ 编程指南
 
-待完善6
-
-* 完善 standAlone 集群模式， 及 错误自启动。
-
 待完善7
 
 * 对于 kafka 如果是相同的 client 不同的 程序， 是否能够延续上次的 offset继续执行？

@@ -1,10 +1,19 @@
-# Spark 集群
+# Spark 集群相关
 
 <font face="楷体">
 
 来源于官方, 可以理解为是官方译文, 外加一点自己的理解. 版本是2.4.4
 
 本篇文章涉及到:
+
+* 集群概述
+* master, worker, driver, executor的理解
+* 打包提交,发布 Spark application
+* standalone模式
+  * SparkCluster 启动 及相关配置
+  * 资源, executor分配
+  * 开放网络端口
+  * 高可用(Zookeeper)
 
 ## 名词解释
 
@@ -51,21 +60,37 @@ Spark Application 在集群上作为独立的进程组来运行，在 main程序
 
 </font>
 
->可以参考:[Spark中master、worker、executor和driver的关系](https://blog.csdn.net/hongmofang10/article/details/84587262)
+>可以参考:
+>
+>[Spark中master、worker、executor和driver的关系](https://blog.csdn.net/hongmofang10/article/details/84587262)
+>
+>[Spark源码之Master](https://www.jianshu.com/p/bcf38dd94e5c)
 
 上面的博客是我看了几篇之后, 觉得描述的比较准确的.
 
 那么一点点来说: spark的application 运行需要一个环境, 也即spark本身.
 
-而往往我们使用的就是集群环境, 集群环境中有多台机器, 多个进程, 这就需要一个管理器, 管理 多个master 和 多个 worker节点. 这个就是 cluster manager. 而我们直接通信的对象, 也就是 application 直接通信的对象 就是 master. 由master 来告诉我们 运行程序的资源究竟在哪里.
+而往往我们使用的就是集群环境, 集群环境中有多台机器, 多个进程, 这就需要一个管理器, 管理 多个master 和 多个 worker节点. 这个就是 cluster manager. 而我们直接通信的对象, 也就是 application 直接通信的对象 就是 master. 由master 来告诉我们 application 的可用资源在哪里.
 
 一个集群中, 可以运行多个application.
 
-当我们提交application之后, 会接入master, master分配给我们资源, 也即进程, main程序所在的进程 就被称作是 driver. driver 分配任务, 协调各个executor, 运行各个 task的就是 executor.
+当我们提交application之后, 会接入master, master分配给我们资源, 也即executor, main程序所在的进程. 就被称作是 driver. driver 分配任务, 协调各个executor, 运行各个 task的就是 executor.
 
 注意在这里并没有指定driver究竟会运行在哪个节点上.
 
 与选取的模式有关.
+
+<font color="orange">
+
+而master呢? 在master中注册 application, driver, worker这三种资源, 而 executor资源是注册在 driver中的, 新的worker加入, driver状态变化, worker状态变化 都会通告给 master 以重新协调资源.
+
+我们会发现, executor在分配之后是与master无关的, 程序是运行在executor中的, driver并不一定运行在master中, 因此即使master挂掉, 程序也并不是就不能够运行了.
+
+master worker是集群中的物理资源分配, driver , executor 是对物理资源的使用. 在申请新的资源时, 需要向master申请, 在任务调度运行时, 则无需向master通报.
+
+</font>
+
+其实仔细想想, 在大多数集群的处理中, 都是采用这种模式, cluster manager负责集群的资源管理, 相互通信, master节点负责资源调度, 资源状态变更处理, 而 application 是独立于它们运行的, 一旦获取到自己需要的资源, 就不和master进行通信了.
 
 ![](http://spark.apache.org/docs/latest/img/cluster-overview.png)
 
@@ -226,6 +251,16 @@ ${SPARK_HOME}/sbin/start-all.sh
 
     注意： 启动脚本现在还不支持 Windows。要在 Windows 上运行一个 Spark 集群，需要手动启动 master 和 workers。
 
+但是不知为何, 我在运行 start-all的时候, <font color="orange">出现了 master 已经启动, 但 worker不能启动的问题.
+
+最终的解决方式是将 在 Spark-env.sh中加入
+
+    export JAVA_HOME=$JAVA_PATH
+
+才解决的这个问题, 因此 Spark-env.sh 不仅能够用来容纳所上述所提供的 部分参数, 还能够指定, 提供Spark所需要的环境变量, 如 JAVA_HOME, SCALA_HOME, PYTHON_HOME 等等.
+
+</font>
+
 2. SPARK_MASTER_OPTS 参数
 
     属性名 | 默认值 | 含义
@@ -267,7 +302,115 @@ standalone cluster 模式支持 自动重启 application, 如果程序是以 非
 
     ./bin/spark-class org.apache.spark.deploy.Client kill <master url> <driver ID> 
 
+### 资源分配
 
+standalone 集群模式当前只支持一个简单的跨应用程序的 FIFO 调度。然而，为了允许多个并发的用户，您可以控制每个应用程序能用的最大资源数。默认情况下，它将获取集群中的 all cores（核），这只有在某一时刻只允许一个应用程序运行时才有意义, 因为如果此时其他的核被占用, 自然无法获取资源, 运行程序, 此时是有多少核用多少核. 
 
+您可以通过 spark.cores.max 在 SparkConf 中设置 cores（核）的数量。例如：
 
+    val conf = new SparkConf()
+    .setMaster(...)
+    .setAppName(...)
+    .set("spark.cores.max", "10")
+    val sc = new SparkContext(conf)
+
+这样就不用担心一个application占用了集群所有的资源, 又因为在 FIFO 模式下, 导致其他application无法使用.
+
+此外, 如果不想通过 spark.cores.max,也可以通过在集群的 master 进程中配置 spark.deploy.defaultCores 来修改的应用程序。通过添加下面的命令到 conf/spark-env.sh：
+
+export SPARK_MASTER_OPTS="-Dspark.deploy.defaultCores=$value"
+
+### executor分配
+
+每个executor的可使用 核心数 是 可配置的, 当 spark.executor.cores 被设置之后, 同一application的多个 executors 可能在同一台机器上运行, 在机器的 core 和 memory 资源充足的情况下.
+
+否则 每个executor 会获取 所有的可用 core, 当然 和 资源分配中提到的一致, 这需要在每次任务调度期间, 每个worker上的单个 application 只有 一个 executor. 
+
+### 监控 & 日志
+
+监控自然是:
+
+SPARK_MASTER_WEBUI_PORT 默认8080
+
+SPARK_WORKER_WEBUI_PORT 默认8081, 如果8081已经被占用, 则会顺延一位.
+
+分别对应 master的web ui 和 worker的web ui
+
+至于日志 则是在各个节点的 worker目录.
+
+### 配置网络安全端口
+
+通常来说, 一个 spark cluster 和 其服务 并不会放在公共网络上, 一般都运行在私有服务内, 并且只能在部署Spark的组织网络内访问.
+
+对Spark服务使用的主机和端口的访问 应仅限于需要访问服务的 原始主机.
+
+这对于standalone来说更为重要, 因为这种模式并不支持 自由的 网络资源控制.
+
+>可以参考链接:
+>
+>[端口配置](http://spark.apache.org/docs/latest/security.html#configuring-ports-for-network-security)
+
+同样的关键部分, 与外界交互的端口, 用特殊颜色标注:
+
+起始地址 | 目标地址 | 默认端口 | 用户 | 配置 | 说明
+-|-|-|-|-|-|
+浏览器 | standalone master | 8080 | WEBUI |	<font color="orange">spark.master.ui.port / SPARK_MASTER_WEBUI_PORT </font>|仅在 standalone模式使用
+浏览器 | standalone Worker | 8081 | Web UI | <font color="orange">spark.worker.ui.port</font>| / SPARK_WORKER_WEBUI_PORT | 仅在 standalone模式使用
+Driver / Standalone Worker | Standalone Master | 7077 | driver提交任务到 cluster/worker加入 cluster	Submit job to cluster | <font color="orange">SPARK_MASTER_PORT</font>| | 设置为0则是 随机端口, 仅在 standalone模式使用
+外部服务 |	Standalone Master |	6066 | 通过 REST API的方式提交任务到集群中. | spark.master.rest.port | 需要spark.master.rest.enabled  设置为 enabled. 仅在集群模式下使用.
+Standalone Master |	Standalone Worker | (random) | 调度分配 executors | SPARK_WORKER_PORT |	设置为0则二十随机端口. 仅在 standalone模式下使用.
+浏览器 | application | 4040 | WebUI | <font color="orange">spark.ui.port</font>| | 所有模式, 如果有多个application 顺延.
+浏览器 | 历史服务: [Spark学习笔记-使用Spark History Server](https://www.cnblogs.com/gnivor/p/4672746.html) |	18080 |	Web UI | spark.history.ui.port | 所有模式
+Executor / Standalone Master | Driver |	(random) | 连接到 application 或 发现 executor状态变更 | spark.driver.port | 设置为0即是随机端口, 所有模式可用.
+Executor / Driver |	Executor / Driver |	(random) | Block Manager 端口 | spark.blockManager.port	| 通过 ServerSocketChannelRaw socket
+
+### 高可用
+
+一般来说, standalone 集群 调度 对于 worker的失败都是有一定弹性的(会将 失去连接 的worker从 worker中移除, 并将任务分配给其他worker.) 然而, 调度器使用的是 master去进行调度决策, 并且（默认情况下）会产生一个单点故障: 如果master 一旦崩溃, 则不会有任何 application 能够被创建, 为了规避这一点, 有如下两个高可用性方案:
+
+1. Zookeeper
+
+    使用zk提供 leader的选举 和 存储一些状态. 我们可以通过 启动 多个masters 并连接到同一个 Zookeeper, 其中一个master会被选举为 leader, 其他的节点会维持在备用状态, 如果当前leader宕机, 则会从备份中选取一个master作为 leader, 恢复master状态, 并恢复调度. 从master宕机开始到另一个master恢复启用, 应该会用1~2分钟的时间.
+
+    注意 这种延迟仅仅会影响 调度新的 application, 在master挂掉期间, 正在运行的application是不受影响的.
+
+    配置:
+
+    为了启用这个恢复模式，您可以在 spark-env 中设置 SPARK_DAEMON_JAVA_OPTS 通过配置 spark.deploy.recoveryMode 和相关的 spark.deploy.zookeeper.* 配置。
+
+    >配置连接: [zk配置](http://spark.apache.org/docs/latest/configuration.html#deploy)
+
+    内容如下:
+
+    属性名称 | 默认值 | 含义
+    -|-|-|
+    spark.deploy.recoveryMode | NONE | 恢复模式设置，用于在失败并重新启动时以集群模式恢复提交的Spark作业。这仅适用于与Standalone或Mesos一起运行的群集模式。
+    spark.deploy.zookeeper.url | NONE | 当spark.deploy.recoveryMode设置为ZOOKEEPER时，此配置用于设置要连接的Zookeeper URL.
+    spark.deploy.zookeeper.dir | NONE | 当spark.deploy.recoveryMode设置为ZOOKEEPER时，此配置用于设置zookeeper 存储状态的目录.
+
+    当你已经加入了ZK的相关配置之后, 实现高可用就是一件很简单的事, 只需要启动在 多个节点上 启动 多个 master进程 配置同一个zk(包括url 和 目录.), 可以在任意时间添加 或 移除 master.
+
+    为了添加新的 application 或 加入 新的 worker节点, 我们需要知道当前leader的 地址.这可以通过简单地传递一个你在一个单一的进程中传递的 Masters 的列表来完成。
+
+    如:
+
+    <font color="orange">
+    
+    spark://host1:port1, host2:port2, host3:port3
+    
+    </font>
+
+    通过这种方式 就可以将所有的master注册给 SparkContext了, 如果一个host挂掉, 通过这种方式就可以正确的找到 leader2.
+
+    在使用 Master 注册 与 正常操作之间有一个重要的区别。当启动的时候，一个 application 或者 Worker 需要找到当前的 lead Master 并 注册.一旦它成功注册，它就是 “在系统中” 了（即存储在了 ZooKeeper 中）。如果发生故障切换，新的 leader 将会联系所有之前已经注册的应用程序和 Workers 来通知他们领导层的变化，所以他们甚至不知道新的 Master 在启动时是否是否存在.
+
+    通过这个属性, 新的master可以在任何时候被创建, 所以你唯一需要担心的是, 新的application 和 worker 能够找到它, 假设它成为了新的leader. 一旦成功注册, 你就不需要担心了.
+
+    2. 本地文件的方式
+
+    Zookeeper是最佳方式, 因此我就不再这里介绍另一种方式了.
+
+    这种方式的目的是, 你仅仅只是想要在 master 挂掉之后, 重启master.
+
+    >[Single-Node Recovery with Local File System](http://spark.apache.org/docs/latest/spark-standalone.html) 的最后一部分.
 </font>

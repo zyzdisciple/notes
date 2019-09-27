@@ -767,6 +767,10 @@ checkPoint 并非总是必要的,当我们依赖的是可靠数据源,(又或者
 
 ## Spark 部署
 
+个人写的Spark集群部署相关, 详细描述了 standalone模式
+
+>[Spark集群-Standalone 模式](https://www.cnblogs.com/zyzdisciple/p/11599596.html)
+
 要运行Spark 应用程序, 需要以下功能:
 
 1. 集群管理器, 有这样几种
@@ -783,8 +787,6 @@ checkPoint 并非总是必要的,当我们依赖的是可靠数据源,(又或者
 3. 为 executor 配置足够的内存 - 由于接收到的数据必须存储在内存中,所以 executor 必须配置足够的内存来保存接收到的数据.请注意,如果您正在进行10分钟的窗口操作,系统必须至少保留最近10分钟的内存中的数据.因此,应用程序的内存要求取决于其中使用的操作.
 
 4. 配置 checkpoint - 如果 streaming 应用程序需要它,则 Hadoop API 容错存储(例如:HDFS,S3等)中的目录必须配置为 checkpoint 目录,并且流程应用程序以 checkpoint 信息的方式编写Streaming代码.
-
-//待完善6
 
 5. 配置应用程序 driver 的自动重新启动
 
