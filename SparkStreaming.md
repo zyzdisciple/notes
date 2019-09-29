@@ -832,11 +832,7 @@ checkPoint 并非总是必要的,当我们依赖的是可靠数据源,(又或者
 
 1. 新旧代码并行运行, 直到你认为可以的时候, 停掉原有代码.
 
-//待完善7 
-
-2. 正常停止,在 JavaStreamingContext.stop() 方法中接收两个参数, 第一个是 是否执行完当前数据, 第二个是是否停止 SparkContext. 
-
-    而这也正是 checkpoint的缺点,
+2. 正常停止,在 JavaStreamingContext.stop() 方法中接收两个参数, 第一个是 是否执行完当前数据, 第二个是是否停止 SparkContext. 在当前任务已经执行完之后, 再停止程序, 新的程序启动之后, 会从上次的checkpoint去启动, 而这也正是 checkpoint的缺点, 即 两次的 代码已经变更, 两次的序列化结果, 反序列化并不一致, 因此必须删除 checkpoint 目录才能够正常启动, 这也就意味着在上次停止是 保存的 application 信息 已经消失.
 
 
 ## 性能调优
