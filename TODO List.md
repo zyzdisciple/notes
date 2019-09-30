@@ -1,11 +1,5 @@
 SparkStreaming（1） ~ 编程指南
 
-待完善7
-
-* 对于 kafka 如果是相同的 client 不同的 程序， 是否能够延续上次的 offset继续执行？
-
-* 补全第二点中的说明， SparkStreaming kafka 究竟如何保存数据 offset。
-
 待完善8
 
 * 性能调优 介绍链接。
