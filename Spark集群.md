@@ -1,5 +1,11 @@
 # Spark 集群相关
 
+<style>
+table td{
+  width: 15%
+}
+</style>
+
 <font face="楷体">
 
 来源于官方, 可以理解为是官方译文, 外加一点自己的理解. 版本是2.4.4
@@ -279,7 +285,7 @@ ${SPARK_HOME}/sbin/start-all.sh
     <font color="orange">spark.worker.cleanup.enabled</font> | false | 允许定期清理 worker / application 目录. 仅在standalone模式有效,且仅对已经停止运行的 application有效.
     <font color="orange">spark.worker.cleanup.interval</font> | 1800 (30 minutes) | 在本地机器上，多久去检测并清理一次，以秒计数.
     <font color="orange">spark.worker.cleanup.appDataTtl</font> | 604800 (7 days, 7 * 24 * 3600) | 对于每一个worker, 允许目录存在的最大时间, 这应该取决于你磁盘 可分配的最大空间. 随着时间的推移, 这个工作目录会很快填满磁盘空间, 特别是如果您经常运行jobs.
-    spark.storage.cleanupFilesAfterExecutorExit | true | 在executor退出之后自动清除 工作目录下的 non-shuffle 文件(例如: 临时文件, shuffle blocks, 缓存的 RDD/broadcast blocks, spill files, 等等) of worker directories following executor exits. 注意与 `spark.worker.cleanup.enabled` 是不同的. 后者会清理所有超时的项目文件.仅在 standalone模式下有效.
+    spark.storage.cleanupFilesAfterExecutorExit | true | 在executor退出之后自动清除 工作目录下的 non-shuffle 文件(例如: 临时文件, shuffle blocks, 缓存的 RDD/broadcast blocks, spill files, 等等) of worker directories following executor exits. 注意与 spark.worker.cleanup.enabled 是不同的. 后者会清理所有超时的项目文件.仅在 standalone模式下有效.
     spark.worker.ui.compressedLogFileLengthCacheSize | 100 | 对于压缩日志文件，只能通过未压缩文件来计算未压缩文件。Spark 缓存未压缩日志文件的文件大小。此属性控制缓存的大小.
 
 4. 要在 Spark 集群中运行一个应用程序，只需要简单地将 master 的 spark://IP:PORT URL.
@@ -355,7 +361,7 @@ SPARK_WORKER_WEBUI_PORT 默认8081, 如果8081已经被占用, 则会顺延一�
 起始地址 | 目标地址 | 默认端口 | 用户 | 配置 | 说明
 -|-|-|-|-|-|
 浏览器 | standalone master | 8080 | WEBUI |	<font color="orange">spark.master.ui.port / SPARK_MASTER_WEBUI_PORT </font>|仅在 standalone模式使用
-浏览器 | standalone Worker | 8081 | Web UI | <font color="orange">spark.worker.ui.port</font>| / SPARK_WORKER_WEBUI_PORT | 仅在 standalone模式使用
+浏览器 | standalone Worker | 8081 | Web UI | <font color="orange">spark.worker.ui.port</font>|  SPARK_WORKER_WEBUI_PORT | 仅在 standalone模式使用
 Driver / Standalone Worker | Standalone Master | 7077 | driver提交任务到 cluster/worker加入 cluster	Submit job to cluster | <font color="orange">SPARK_MASTER_PORT</font>| | 设置为0则是 随机端口, 仅在 standalone模式使用
 外部服务 |	Standalone Master |	6066 | 通过 REST API的方式提交任务到集群中. | spark.master.rest.port | 需要spark.master.rest.enabled  设置为 enabled. 仅在集群模式下使用.
 Standalone Master |	Standalone Worker | (random) | 调度分配 executors | SPARK_WORKER_PORT |	设置为0则二十随机端口. 仅在 standalone模式下使用.
