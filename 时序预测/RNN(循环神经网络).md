@@ -99,7 +99,37 @@ yt是t时刻输入的真实标签值，ot为模型的预测值，N代表全部N�
 
 其中 η 则可以控制 梯度下降的更新速率.
 
-//TODO 代码
+> 参考链接: [RNN - LSTM - GRU](https://zhuanlan.zhihu.com/p/60915302)
+
+在参考连接中, 提到了 RNN之所以会产生梯度爆炸 或 梯度消失的原因.
+
+![](img/RNN梯度爆炸原因.png)
+
+### 梯度爆炸的解决办法
+
+1. Truncated Backpropagation through time：每次只 BP 固定的 time step 数，类似于 mini-batch SGD。缺点是丧失了长距离记忆的能力。
+
+2. Clipping Gradients： 当梯度超过一定的 threshold 后，就进行 element-wise 的裁剪，该方法的缺点是又引入了一个新的参数 threshold。同时该方法也可视为一种基于瞬时梯度大小来自适应 learning rate 的方法.
+
+    > 梯度裁剪参考链接: 
+    > 
+    > [梯度爆炸的解决办法：clip gradient](https://blog.csdn.net/u010814042/article/details/76154391)
+    > [TensorFlow中的梯度裁剪（Gradient Clipping）](https://blog.csdn.net/jetFlow/article/details/80161354)
+
+    需要注意的是, 并非仅仅会在标准的RNN算法中遇到梯度爆炸.
+
+3. 使用 LSTM、GRU等升级版 RNN，使用各种 gates 控制信息的流通。
+
+4. 在这篇论文 (https://arxiv.org/pdf/1602.06662.pdf) 中提出将权重矩阵 W 初始化为正交矩阵。正交矩阵有如下性质： ![](img/正交矩阵特征.svg)， 正交矩阵的特征值的绝对值为1。证明如下， 对矩阵A有：
+
+    ![](img/正交矩阵特征证明.svg)
+
+5.  反转输入序列。若使用正常序列输入，则输入序列的第一个词和输出序列的第一个词相距较远，难以学到长期依赖。将输入序列反向后，输入序列的第一个词就会和输出序列的第一个词非常接近，二者的相互关系也就比较容易学习了。
+
+    > [Seq2Seq模型概述](https://www.jianshu.com/p/b2b95f945a98)
+
+6. LSTM 中引入了门控机制来控制信息的累计速度，包括有选择地加入新的信息，并有选择地遗忘之前累计的信息
+
 
 ## 改良RNN
 
