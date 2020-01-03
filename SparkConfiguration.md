@@ -188,6 +188,9 @@ spark.eventLog.dir | file:///tmp/spark-events | 如果启用了eventLog 则使�
 spark.eventLog.enabled | false | 是否记录Spark的事件, 可用于在 application完成之后重现webui的相关信息.
 spark.eventLog.overwrite | false | 是否直接覆盖 Spark的相关文件.
 spark.eventLog.buffer.kb | 100k | 日志输出流的缓存.
-
+spark.ui.dagGraph.retainedRootRDDs | Int.MaxValue |  在垃圾回收之前, Spark UI 和 status APIs 记录多少个 DAG图的节点
+spark.ui.enabled | true | 是否启用SparkUI
+spark.ui.killEnabled | true | 可以通过SparkUI kill application
+spark.ui.liveUpdate.period | 
 
 </font>
