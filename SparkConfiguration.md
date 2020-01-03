@@ -94,7 +94,7 @@ Spark Properties 主要可以分为两类:
 
 其中比较重要,有趣的 会在个人理解这一栏 标色.
 
-Application Properties
+#### Application Properties
 
 Property Name | Default | Meaning | 个人理解
 -|-|-|-|
@@ -114,7 +114,7 @@ spark.submit.deployMode | (none) | Spark driver 程序的部署模式，可以�
 spark.log.callerContext | (none) | 当运行在 YARN/HDFS中时, 写入审计日志中的 application信息, 长度由 hadoop.caller.context.max.size 决定, 但通常来说不超过50字符. |
 spark.driver.supervise | false | 如果设置为true, 当driver 节点 非0值退出时 会自动重启 driver节点. 仅在 Standalone 和 Mesos 的集群模式下可用. | <font color="orange"> 这个功能比较有用, Spark中 所有的 executor都是注册在 driver中的. 如果driver节点退出, Spark自然就停止运行了. </font>
 
-Runtime Environment
+#### Runtime Environment
 
 Property Name | Default | Meaning | 个人理解
 -|-|-|-|
@@ -136,15 +136,58 @@ spark.redaction.regex |
 spark.files | | 以,分割的, 文件列表. 被放置在每个executor的工作目录. 可以设定为全局参数. |
 spark.jars | | 以, 分隔的 jars列表, 被包含在每个executor 和 driver的classpath中. 可以设定为全局参数.|
 
-Shuffle Behavior
+#### Shuffle Behavior
 
 Property Name | Default | Meaning | 个人理解
 -|-|-|-|
 spark.reducer.maxSizeInFlight | 48m | 从每个 Reduce 任务中并行的 fetch 数据的最大大小。因为每个输出都要求我们创建一个缓冲区，这代表要为每一个 Reduce 任务分配一个固定大小的内存。除非内存足够大否则尽量设置小一点。 |
 spark.reducer.maxReqsInFlight | Int.MaxValue | 在集群节点上，这个配置限制了远程 fetch 数据块的连接数目。当集群中的主机数量的增加时候，这可能导致大量的到一个或多个节点的主动连接，导致负载过多而失败。通过限制获取请求的数量，可以缓解这种情况。 |
 spark.reducer.maxBlocksInFlightPerAddress | Int.MaxValue | 与上面类似, 不过上面限制的是 集群节点, 而这个参数限制的是 host port.
-spark.maxRemoteBlockSizeFetchToMem | Int.MaxValue - 512 | 远程的block 会在 blocks的数量超出阈值的时候 存储到硬盘中, 这是为了防止 一个巨大的请求, 需要消耗太多的内存. 默认情况下, 这仅仅会在 blocks大于2GB的时候启用,  
-spark.shuffle.compress | true | 是否要对 map 输出的文件进行压缩。默认为 true，spark.io.compression.codec |
+spark.maxRemoteBlockSizeFetchToMem | Int.MaxValue - 512 |  当远程拉取的block 大小超出了阈值之后, 就会被存储在硬盘中, 这是为了防止 block太大, 需要消耗太多的内存. 默认情况下, 这仅仅会在 blocks大于2GB的时候启用.  同样的, 可以将这个值调小,  可以占用更少的内存. 需要注意的是, 无论是 shuffle 和 从远程拉取 block, 这个参数都是有效的. | <font color="orange">而block究竟是什么?  可以参考表格后的描述及链接. </font>
+spark.shuffle.file.buffer | 32k | 每个 shuffle 文件输出流的内存大小。这些缓冲区的数量减少了磁盘寻道和系统调用创建的 shuffle 文件。
+spark.shuffle.io.maxRetries | 3 | （仅Netty）如果设置了非 0 值，与 IO 异常相关失败的 fetch 将自动重试。在遇到长时间的 GC 问题或者瞬态网络连接问题时候，这种重试有助于大量 shuffle 的稳定性。 | <font color="orange">有点意思</font>
+spark.shuffle.io.numConnectionsPerPeer | 1 |（仅Netty）重新使用主机之间的连接，以减少大型集群的连接建立。 对于具有许多硬盘和少量主机的群集，这可能导致并发性不足以使所有磁盘饱和，因此用户可考虑增加此值。
+spark.shuffle.compress | true | 是否要对 map 输出的文件进行压缩。默认为 true，
+spark.shuffle.io.preferDirectBufs | true | （仅Netty）堆缓冲区用于减少在 shuffle 和缓存块传输中的垃圾回收。对于严格限制的堆内存环境中，用户可能希望把这个设置关闭，以强制Netty的所有分配都在堆上。
+spark.shuffle.io.retryWait | 5s | 仅适用于 Netty）fetch 重试的等待时长。默认 15s。计算公式是 maxRetries * retryWait。
+spark.shuffle.io.backLog | 64 |  当Application的数量比较大时, 就可能需要调大这个值, 以使 在当前服务 在短时间内有大量链接的时候 保持新进来的链接不被丢弃.
+spark.shuffle.service.enabled | false | 目的是在移除 executor 的时候，能够保留 executor 输出的 shuffle 文件. 当 spark.dynamicAllocation.enabled 设置为true的时候, 当前参数也必须设置为 true.
+spark.shuffle.service.port | 7337 | shuffle service 的 的 端口.
+spark.shuffle.service.index.cache.size | 100m | 在指定的内存中，缓存项所能够占用到的字节数. |
+spark.shuffle.maxChunksBeingTransferred | Long.MAX_VALUE | 在 shuffle Service过程中, 最大允许同时 转移的  块的数量. 当达到最大数量时 新进的链接会被关闭, 而后会进行重试, 参数是: spark.shuffle.io.maxRetries and spark.shuffle.io.retryWait. 如果达到相应的最大值, 任务就会失败. |
+spark.shuffle.sort.bypassMergeThreshold | 200 | 当ShuffleManager为SortShuffleManager时，如果shuffle read task的数量小于这个阈值（默认是200），则shuffle write过程中不会进行排序操作，而是直接按照未经优化的HashShuffleManager的方式去写数据，但是最后会将每个task产生的所有临时磁盘文件都合并成一个文件，并会创建单独的索引文件。调优建议：使用SortShuffleManager时，且不需要排序操作，将这个参数调大，大于shuffle read task的数量。 | <font color="orange">有点意思,  shuffle可以参考下面的链接. </font>
+spark.shuffle.spill.compress | true | 在溢写的时候是否进行压缩, 压缩算法 spark.io.compression.codec. |
+spark.shuffle.accurateBlockThreshold | 100 * 1024 * 1024 | 以字节为单位的阈值，在该阈值之上，可以准确记录HighlyCompressedMapStatus中的shuffle块的大小。这有助于通过避免在获取shuffle块时低估shuffle块大小来防止OOM
+spark.shuffle.registration.timeout | 5000 | 注册到外部shuffle服务的超时(以毫秒为单位)。
+spark.shuffle.registration.maxAttempts | 3 | 当我们注册到外部shuffle服务失败时，我们将重试最大尝试次数。
 
- as those cannot be fetched directly into memory, no matter what resources are available. But it can be turned down to a much lower value (eg. 200m) to avoid using too much memory on smaller blocks as well. Note this configuration will affect both shuffle fetch and block manager remote block fetch. For users who enabled external shuffle service, this feature can only be used when external shuffle service is newer than Spark 2.2.
+> block: BlockManager是spark自己的存储系统，RDD-Cache、 Shuffle-output、broadcast 等的实现都是基于BlockManager来实现的，BlockManager也是分布式结构，在driver和所有executor上都会有blockmanager节点，每个节点上存储的block信息都会汇报给driver端的blockManagerMaster作统一管理，BlockManager对外提供get和set数据接口，可将数据存储在memory, disk, off-heap。
+> 
+> 参考链接:
+> 
+>  [[spark] BlockManager 解析](https://www.jianshu.com/p/95127b908944)
+>  
+> [spark block读写流程分析](https://www.cnblogs.com/superhedantou/p/7868053.html)
+
+
+> shuffle
+> 参考链接:
+>
+> [Spark Shuffle原理、Shuffle操作问题解决和参数调优](https://www.cnblogs.com/arachis/p/Spark_Shuffle.html)
+>
+>> 至于为什么要进行排序, 我想主要是便于处理, 将相同key的可以直接进行 reduce等相关操作. 否则就需要以Map<Key, List> 形式 存入内存中. 不太合适, 毕竟 Spill已经是在内存不足的情况下发生的.
+
+#### Spark UI
+
+Property Name | Default | Meaning | 个人理解
+-|-|-|-|
+spark.eventLog.logBlockUpdates.enabled | false | 当更新block 的时候 是否记录相应的事件, 如果打开的话, 日志增长会相当迅速.
+spark.eventLog.longForm.enabled | false | 是否使用长 格式的日志记录.
+spark.eventLog.compress | false | 是否启用日志压缩 算法使用 spark.io.compression.codec.
+spark.eventLog.dir | file:///tmp/spark-events | 如果启用了eventLog 则使用当前文件夹作为 日志的顶级文件夹, 对于不同的application 会创建不同的文件夹.
+spark.eventLog.enabled | false | 是否记录Spark的事件, 可用于在 application完成之后重现webui的相关信息.
+spark.eventLog.overwrite | false | 是否直接覆盖 Spark的相关文件.
+spark.eventLog.buffer.kb | 100k | 日志输出流的缓存.
+
+
 </font>
