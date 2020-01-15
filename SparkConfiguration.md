@@ -321,17 +321,18 @@ spark.task.cpus | 1 | 对每个task需要申请的cpu数量。
 spark.task.maxFailures | 4 | 对于单个task， 而非stage中task总的失败次数。 超过这个值就会放弃当前job。最小值为1， 重试的最大次数为 当前值 - 1. | <font color="orange">比较重要</font>
 spark.task.reaper.enabled | false | 表示是否监控被杀死或中断的task， 直到task真正的 完成执行/killed。如果设置为false， 当task被kill 或中断之后， 是没有办法监控其状态的。
 spark.task.reaper.pollingInterval | 10s | executor多久下拉一次 被kill的task的状态。
+spark.task.reaper.threadDump | true | 在周期性拉取killed task信息时， 是否记录线程快照信息。
+spark.task.reaper.killTimeout | -1 | 在task killed 发生多久之后， 如果task依然在 运行， 则kill对应的executor。-1表示禁止的。
+spark.stage.maxConsecutiveAttempts | 4 | 在终止前，一个stage连续尝试次数，默认4。
 
+#### Dynamic Allocation
 
+Property Name | Default | Meaning | 个人理解
+-|-|-|-|
+spark.dynamicAllocation.enabled | false | 动态收集， 要求： spark.shuffle.service.enabled 设置为true。[动态收集](http://spark.apache.org/docs/latest/job-scheduling.html#dynamic-resource-allocation).
+spark.dynamicAllocation.executorIdleTimeout | 60s | 当executor空闲时间超过这个时间就会被回收。
+spark.dynamicAllocation.cachedExecutorIdleTimeout | infinity | 
 
-Fraction of tasks which must be complete before speculation is enabled for a particular stage.
-
-
-	How many times slower a task is than the median to be considered for speculation.
-
-
-
-The timeout in seconds to wait to acquire a new executor and schedule a task before aborting a TaskSet which is unschedulable because of being completely blacklisted.
 
 
 > 参考链接
