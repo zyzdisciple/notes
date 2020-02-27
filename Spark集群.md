@@ -370,7 +370,7 @@ Standalone Master |	Standalone Worker | (random) | 调度分配 executors | SPAR
 Executor / Standalone Master | Driver |	(random) | 连接到 application 或 发现 executor状态变更 | spark.driver.port | 设置为0即是随机端口, 所有模式可用.
 Executor / Driver |	Executor / Driver |	(random) | Block Manager 端口 | spark.blockManager.port	| 通过 ServerSocketChannelRaw socket
 
-### 高可用
+## 高可用
 
 一般来说, standalone 集群 调度 对于 worker的失败都是有一定弹性的(会将 失去连接 的worker从 worker中移除, 并将任务分配给其他worker.) 然而, 调度器使用的是 master去进行调度决策, 并且（默认情况下）会产生一个单点故障: 如果master 一旦崩溃, 则不会有任何 application 能够被创建, 为了规避这一点, 有如下两个高可用性方案:
 
@@ -410,13 +410,15 @@ Executor / Driver |	Executor / Driver |	(random) | Block Manager 端口 | spark.
 
     在使用 Master 注册 与 正常操作之间有一个重要的区别。当启动的时候，一个 application 或者 Worker 需要找到当前的 lead Master 并 注册.一旦它成功注册，它就是 “在系统中” 了（即存储在了 ZooKeeper 中）。如果发生故障切换，新的 leader 将会联系所有之前已经注册的应用程序和 Workers 来通知他们领导层的变化，所以他们甚至不知道新的 Master 在启动时是否是否存在.
 
+    需要了解到的一个小细节就是， 在哪一台机器上先启动master，哪个master就是主master（alive）状态， 但这并不会影响driver节点所在的位置，以及 executor的分布， executor的分布与上面提到过的参数 spark.deploy.spreadOut 有关。
+
     通过这个属性, 新的master可以在任何时候被创建, 所以你唯一需要担心的是, 新的application 和 worker 能够找到它, 假设它成为了新的leader. 一旦成功注册, 你就不需要担心了.
 
     2. 本地文件的方式
 
     Zookeeper是最佳方式, 因此我就不再这里介绍另一种方式了.
 
-    这种方式的目的是, 你仅仅只是想要在 master 挂掉之后, 重启master.
+    这种方式的目的是, 你仅仅只是想要在 master 挂掉之后, 选举另一台master进行资源分配。
 
     >[Single-Node Recovery with Local File System](http://spark.apache.org/docs/latest/spark-standalone.html) 的最后一部分.
 </font>
