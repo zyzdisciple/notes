@@ -38,6 +38,8 @@ Rebalance 是kafka Consumer 会触发的一个机制. 即如果在同一个 Cons
 > [Kafka中的HW、LEO、LSO等分别代表什么？](https://www.cnblogs.com/yoke/p/11486196.html)
 > 
 > [Kafka详解（四）：Kafka副本剖析、可靠性分析](https://blog.csdn.net/qq_40378034/article/details/90599082)
+>
+> [Kafka科普系列 | 什么是LW和logStartOffset?](https://blog.csdn.net/u013256816/article/details/88939070)
 
 在一个分区中，leader副本所在的节点会记录所有副本的LEO，而follower副本所在的节点只会记录自身的LEO，而不会记录其他副本的LEO。leader副本收到follower副本的FetchRequest请求之后，它会首先从自己的日志文件中读取数据，然后再返回给follower副本数据前先更新follower副本的LEO。对HW而言，各个副本所在的节点都只记录它自身的HW
 
