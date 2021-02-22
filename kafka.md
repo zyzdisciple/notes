@@ -111,6 +111,14 @@ cluster-wide: 被标记为 cluster-wide 的参数也属于动态参数，修改�
  >
  > cluster-wide
 
+* **log.retention.hours**
+
+ > log.retention.hours, kafka的log日志保存多久. 与之相似的参数有, log.retention.minutes 和 log.retention.ms 不过不常用, 一般精确到小时已经足够了.  **但是就优先级而言, 是ms最高, 其次是minutes, 最后是hours**. 如果设置为 -1表示没有限制.
+ >
+ > 默认值: 168 (一周)
+ >
+ > read-only
+
 其他参数:
 
 * auto.create.topics.enable
@@ -163,19 +171,19 @@ cluster-wide: 被标记为 cluster-wide 的参数也属于动态参数，修改�
  
 * compression.type
  
-  > compression.type, 指定topic的数据压缩类型, 包含, ['gzip', 'snappy', 'lz4', 'zstd'], 除了这几种压缩算法以外, 还接收 'uncompressed' 表示不对数据进行压缩, 以及  'producer' 表示保持和 远端的 producer的压缩算法一致.
-  >
-  > 默认为 producer
-  >
-  > cluster-wide
+ > compression.type, 指定topic的数据压缩类型, 包含, ['gzip', 'snappy', 'lz4', 'zstd'], 除了这几种压缩算法以外, 还接收 'uncompressed' 表示不对数据进行压缩, 以及  'producer' 表示保持和 远端的 producer的压缩算法一致.
+ >
+ > 默认为 producer
+ >
+ > cluster-wide
   
 * control.plane.listener.name
 
-  > control.plane.listener.name, 指定controller所在listener的name. 需要与 listener.security.protocol.map 联合使用, 通常来说会在: listeners 中指定多个listener, 在listener.security.protocol.map 中指定每个listener所使用的网络协议. 而这个参数则是指定了 controller所在的listener 对应的名称.
-  >
-  > 参考链接: [关于Kafka区分请求处理优先级的讨论](https://www.bbsmax.com/A/1O5Ev4Zyd7/) 比较有趣的一篇文章, 能了解的更多一点.
-  >
-  > read-only
+ > control.plane.listener.name, 指定controller所在listener的name. 需要与 listener.security.protocol.map 联合使用, 通常来说会在: listeners 中指定多个listener, 在listener.security.protocol.map 中指定每个listener所使用的网络协议. 而这个参数则是指定了 controller所在的listener 对应的名称.
+ >
+ > 参考链接: [关于Kafka区分请求处理优先级的讨论](https://www.bbsmax.com/A/1O5Ev4Zyd7/) 比较有趣的一篇文章, 能了解的更多一点.
+ >
+ > read-only
   
 * log.dir
 
@@ -201,8 +209,25 @@ cluster-wide: 被标记为 cluster-wide 的参数也属于动态参数，修改�
  
 * log.flush.start.offset.checkpoint.interval.ms
 
- > log.flush.start.offset.checkpoint.interval.ms, 
-  
+ > log.flush.start.offset.checkpoint.interval.ms,  这个参数是定时将 log.start.offset 定时写入文件中的 频率， 在 名词描述中的kafka offset章节有所描述。
+ >
+ > 默认值： 60000（1min）
+ > 
+ > read-only
+
+* log.retention.bytes  
+
+ > log.retention.bytes, 当超过当前限制时, 则删除log文件.
+ >
+ > 默认值: -1 (无限制)
+ >
+ > cluster-wide
+
+* log.retention.minutes
+
+
+* log.retention.ms
+
 
 DEPRECATED 参数:
 
