@@ -6,7 +6,7 @@ table td{
 }
 </style>
 
-<font face="楷体">
+<font face="微软雅黑">
 
 来源于官方, 可以理解为是官方译文, 外加一点自己的理解. 版本是2.4.4
 
@@ -24,7 +24,7 @@ table td{
 ## 名词解释
 
 Term（术语） | Meaning（含义）
--|-|-
+-  |  -  |  -
 Application | 用户构建在 Spark 上的程序。由集群上的一个 driver 程序和多个 executor 组成。
 Driver program | 该进程运行应用的 main() 方法并且创建了 SparkContext。
 Cluster manager | 一个外部的用于获取集群上资源的服务。（例如，Standlone Manager，Mesos，YARN）
@@ -151,6 +151,10 @@ Nomad: 存在第三方的项目(并非受到Spark项目支持的) 可以添加�
 * application-arguments：传递到您的 main class 的 main 方法的参数，如果有的话。
 
 其中 参数顺序并没有严格要求,  但要求 jar路径 必须在倒数第二 或 最后一个参数位置(如果不通过 application-jar 来指定的话).
+
+至于更多参数: 可以通过 spark-submit命令直接查看.
+
+在这里有一个比较有用的参数: --driver-option, 通过这个可以加入Java启动option, 比如在需要进行远程调试 或是 通过 jmx进行 app级别的监控, 又或是进行GC相关的日志调试时, 都可以把参数放在里面.
 
 有一些特定于所使用的集群管理器的可用选项 。例如，对于具有部署模式的Spark standalone Cluster，您还可以指定--supervise以确保驱动程序在非零退出代码失败的情况下自动重新启动。要枚举所有可用的此类选项，请使用来spark-submit运行它--help.
 
@@ -361,7 +365,7 @@ SPARK_WORKER_WEBUI_PORT 默认8081, 如果8081已经被占用, 则会顺延一�
 起始地址 | 目标地址 | 默认端口 | 用户 | 配置 | 说明
 -|-|-|-|-|-|
 浏览器 | standalone master | 8080 | WEBUI |	<font color="orange">spark.master.ui.port / SPARK_MASTER_WEBUI_PORT </font>|仅在 standalone模式使用
-浏览器 | standalone Worker | 8081 | Web UI | <font color="orange">spark.worker.ui.port</font>|  SPARK_WORKER_WEBUI_PORT | 仅在 standalone模式使用
+浏览器 | standalone Worker | 8081 | Web UI | <font color="orange">spark.worker.ui.port</font>| SPARK_WORKER_WEBUI_PORT | 仅在 standalone模式使用
 Driver / Standalone Worker | Standalone Master | 7077 | driver提交任务到 cluster/worker加入 cluster	Submit job to cluster | <font color="orange">SPARK_MASTER_PORT</font>| | 设置为0则是 随机端口, 仅在 standalone模式使用
 外部服务 |	Standalone Master |	6066 | 通过 REST API的方式提交任务到集群中. | spark.master.rest.port | 需要spark.master.rest.enabled  设置为 enabled. 仅在集群模式下使用.
 Standalone Master |	Standalone Worker | (random) | 调度分配 executors | SPARK_WORKER_PORT |	设置为0则二十随机端口. 仅在 standalone模式下使用.
@@ -370,7 +374,7 @@ Standalone Master |	Standalone Worker | (random) | 调度分配 executors | SPAR
 Executor / Standalone Master | Driver |	(random) | 连接到 application 或 发现 executor状态变更 | spark.driver.port | 设置为0即是随机端口, 所有模式可用.
 Executor / Driver |	Executor / Driver |	(random) | Block Manager 端口 | spark.blockManager.port	| 通过 ServerSocketChannelRaw socket
 
-## 高可用
+### 高可用
 
 一般来说, standalone 集群 调度 对于 worker的失败都是有一定弹性的(会将 失去连接 的worker从 worker中移除, 并将任务分配给其他worker.) 然而, 调度器使用的是 master去进行调度决策, 并且（默认情况下）会产生一个单点故障: 如果master 一旦崩溃, 则不会有任何 application 能够被创建, 为了规避这一点, 有如下两个高可用性方案:
 

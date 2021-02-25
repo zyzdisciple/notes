@@ -344,7 +344,29 @@ cluster-wide: 被标记为 cluster-wide 的参数也属于动态参数，修改�
  >
  > cluster-wide
 
+* num.io.threads
 
+ > num.io.threads,  进行IO操作的最大线程数, 配置线程数量为cpu核数2倍，最大不超过3倍.
+ >
+ > 默认值: 8
+ >
+ > cluster-wide
+
+ * num.network.threads
+
+ > num.network.threads, 接收网络请求, 以及通过网络发送消息, 所启动的最大线程数. 一般延迟较低, 可配置为 :配置线程数量为cpu核数加1
+ > 
+ > 默认值: 3
+ >
+ > cluster-wide
+
+* num.recovery.threads.per.data.dir
+
+ > num.recovery.threads.per.data.dir, 在 log.dir 或 log.dirs 中定义的log目录, 对**每个目录**可使用的线程数, 用于在 启动时 recovery使用, 以及shutdown时 flush使用.
+ >
+ > 默认值: 1
+ >
+ > cluster-wide
 
 DEPRECATED 参数:
 
