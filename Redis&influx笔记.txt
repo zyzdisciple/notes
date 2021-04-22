@@ -1,0 +1,902 @@
+1 Storm相关
+
+1.1 Zookeeper
+
+1.2 Apache Storm使用内部分布式消息传递系统来进行Nimbus和管理程序之间的通信。 如何传递？
+
+	Zookeeper
+
+1.3  工作进程将执行与特定拓扑相关的任务。工作进程不会自己运行任务，而是创建执行器并要求他们执行特定的任务。
+工作进程将有多个执行器。 其中工作进程 java中的实现是什么？
+
+1.5 monit
+
+1.6 Strom 本地模式
+
+1.7 cache
+
+1.8 Storm Log4J输出问题;
+
+	resources 下重新定义 log4j2.xml文件， 改变输出级别
+
+1.9 log4j 不输出
+
+	需要在mybatis-config 中加入setting name="logImpl" value="LOG4J"
+	同时在properties中加入相关
+	
+2 Storm 项目存在问题
+
+	字符串的重复处理。
+	
+	过期策略 T
+	
+	拓扑结构 T
+	
+	并行度 executors task workers 选择 T
+	
+	流处理 T
+	
+	tupleId 生成策略 T
+	
+	ack fail 重发等问题 T
+	
+		有这样一种处理方式， 类似于tuple的消息可靠性校验， 不同的是， 对待较为简单地处理过程， 可以进行重复处理，  对待复杂的过程， 则需要加入 0000 类似的字节， 在特定位置表示是否被处理过， 如果处理过， 取出对应的结果， 直接下发， 否则， 再次进行处理。
+		
+		并发， 修改redis中数据时， 会出现线程安全问题
+	
+	spout 生命周期相关方法 T
+	
+	大批量数据写入时如何处理 T
+	
+	*Redis死锁， 分布式锁， 可以尝试 
+	
+		kryo自定义序列化。T
+		
+	Storm 线程安全 T
+		
+3. kafka入门， 尝试
+
+	kafka0.8.2.1版本的 ZKGroupTopicDirs相关， 替换为更高版本的数据。
+
+
+4.其他
+
+	4.1 服务者框架 相关博客。
+	
+	4.2 内网穿透， wireShark
+	
+	4.3 HDFS
+
+5. Spark相关
+Spark 运行模式
+
+Spark累加器， 广播变量， SparkShell
+
+窗口RDD
+
+Spark从kafka拉取数据如何分区的？
+-- spark重启参数
+./bin/spark-submit --deploy-mode cluster --supervise --master spark://... App.jar
+-- 通过Zookeeper保证主节点的容错性
+https://spark.apache.org/docs/latest/spark-standalone.html#high-availabilit
+-- 不可靠数据源
+接收器容错性
+
+6.redis学习
+Q：Redis解决了什么问题？ 是如何解决的？ 为什么需要redis？
+	高速读写， 热点缓存，基于内存， 简单的数据结构，处理速度非常快。
+Q: 与redis类似的还有什么？ 区别是什么？
+	memcache， redis支持持久化， 备份， 分布式， 多种数据结构
+	
+1.redis基本语法：
+	1. keys
+		reids的keys命令一般不再生产环境使用，速率是O(n)级别，性能太低。
+	2. persist expire
+		可以通过perist 移除key的过期时间， 可以通过 expire加上key的过期时间，若是直接 expire key sec<=0 可以直接令key过期
+		ey存在但没有过期时间为-1， 如果为-2表示不存在， ttl可以查看过期时间。
+	3. type
+		数据类型主要有 hash， list， string， set， zset， none
+		type key 查看类型
+	4. 不合适的查询
+		长，慢，批量查询，处理等命令（并不包括pipline）
+	5. incr decr incrby decrby
+		redis格外适合用来做计数器，使用其incr，decr， incrby等，因为redis本身是单线程的，因此无论并发访问量究竟多高，也不会出现计数出错的问题。
+	6.set
+		set 命令， setnx 新增， set key value xx 更新
+	7.mget mset
+	8.String操作：
+		1.strlen， append strlen 获取字符串长度，中文1=2， append可以直接拼接字符串
+		2.getRange， setRange 以字符串下标进行操作。
+	9. hash
+		hash  hget hmget hmset hincrby hgetAll hexists hvals hkeys 
+	10.list 
+		list lpush rpush linsert lset lpop rpop lrange lindex lrem ltrim(当count为0时表示删除所有值相等的元素) llen; blpop brpop(阻塞操作，如果传入timeout为0， 表示一直阻塞)
+	11. set
+		set sadd:当元素已存在，插入失败。 srem, scard:计算大小, sismember:判断元素是否在集合中， srandommember：随机取出一个元素，spop：指随即弹出一个元素， smembers：取出所有元素。sdiff 查看两个key不同的元素。sinter 取交集， sunion：并集。 sinterstore sunionstore 取交集，并集之后存储。
+	12. zset
+		zset：有序集合。 element+score， zadd（时间复杂度为O(logN)）， zrem, zscore(zscore key element), zincrby(给element改变分数), zcard, zrank(可以获取排名)，zrange(从排名x-n，获取对应的element-score， -1表示最后一个，0表示第一个，从小到大，有withscores可选项)。 zcount可以获取两个score之间的数据个数。 zremrangebyrank 可以删除两个排名之间的。zremrangebyscore也是删除，通过分数。
+		zrevrank zrevrange 从高到低。 zrevrangebyscore， zinterstore zunionstore 取交集
+		所以是以element为核心进行相关去重计算等，不太适合用于element值比较大的场景。对于次序特别关注，同时需要对次序进行一定操作的，比较适合用在排名之类的场景下。
+	13. 遍历
+		扫描一系列可以使用 scan系列命令，如在set中就是 sscan
+redis高级功能：
+12：慢查询，主要用来做相关分析使用：
+	https://segmentfault.com/a/1190000009915519?utm_source=tag-newest
+	slowlog-max-len
+	当命令处在慢查询的范围内，会被放入一个固定长度的队列，存储在内存中，当查询时间超过慢查询设定的阈值（slowlog-log-slower-than 微秒）就被加入队列中。
+	config get slowlog-max-len ： 一般设置为1000，并且通过get方法，定期做持久化
+	config get slowlog-log-slower-than：一般设置为1ms
+	可以通过config set 进行配置。
+	slowlog get n：可以获取一定条数的慢查询队列中的值。
+	slowlog len：获取慢查询队列长度。
+	slowlog reset：清空慢查询队列
+13：pipeline
+	节省网络开销
+	非原子性性，在redis服务端会将命令拆分开来，插入执行。 而 mset mget 是原子性操作。
+	使用时需要注意携带数据量的问题
+	pipeline只能作用在一个redis节点上。
+14：发布订阅
+	publish channel message
+	subscribe channels 可以同时订阅多个频道，此时只要发布者发布消息，订阅者就能够收到。
+	unsubscribe channels 可以取消多个频道。
+	psubscribe parttern 批量订阅。
+	punsubscribe parttern 批量取消订阅
+	pubsub channels 列出至少有一个订阅者的频道。
+	pubsub numsub zyxtv 查看当前频道有多少个订阅者
+	
+	消息队列适用于非共享资源。
+15：bitmap
+	位图
+	可以通过getbit setbit 获取更改指定位。 同时它也是string的另一种表示方式，不仅可以对 setbit设置的数据进行操作， 也可以对 set key 的数据进行操作。
+	如果setbit偏移量超过当前长度，会进行补零。
+	bitcount 可以获取 从 start end 之间值为1的个数。
+	bitop 可以做多个bitmap的 and or not xor操作并保存在destkey中。
+	bitpos key targetBit start end 获取在 start end之间的，第一个 bit值等于targetBit值得偏移量。 如果不指定start end 就是从头开始。
+16：hyperLogLog:
+	pfcount, 统计
+	pfadd, 添加
+	pfmerge, 合并
+	消耗内存极其小，但主要功能也只是用来做统计使用。
+	但是有错误率，且不能取出单条数据。 优点是内存极其小。
+17：redis持久化
+	1：RDB
+	将临时数据全部存储在硬盘中。用以恢复。
+	方式1：save，会进行阻塞。 因为是同步命令，保存当前所有数据。 不会消耗额外内存。
+	方式2：bgsave，异步存储，开启另一个线程。消耗内存较多，但是不会阻塞命令。
+	方式3：自动， 在 seconds内出现了 changes次改变，则会自动保存。 因为写入量无法控制，因此频次本身难以控制。
+	
+	触发方式：
+	1.全量复制，是在主从之间进行复制的时候，主会自动生成RDB文件
+	2.debug reload， 在不清空内存的情况下重启，会生成RDB文件
+	3.shutdown命令
+	缺点：
+	时间，性能消耗， 在bgsave中， 采取的是copyonwrite方式。 宕机的时候，容易数据丢失。
+	2：AOF
+	方式是 记录操作日志的方式。
+	对于写命令存在缓冲区， 是将缓冲区的数据，写入到硬盘中。
+	方式1：always 对于每条数据都写入到硬盘中。 写入频率高的时候， 硬盘压力大。
+	方式2：everysec 每秒的数据都写入硬盘。 会丢失一秒的数据。
+	AOF重写，压缩命令，精简命令，处理过期数据。
+	重写1：bgrewriteaof， 将当前redis内存中的数据进行回溯，生成对应的AOF文件，而不是对AOF文件本身进行分析。
+	auto-aof-rewrite-min-size： 64m 重写尺寸， 文件大小超过一定量重写AOF
+	auto-aof-rewrite-percentage：100 AOF文件增长率。
+	相关实际参数：aof-current-size aof-base-size 分别是当前大小， 和原来的大小。
+	实际处理会在aof过程中， 将当前已有的数据写入 aof-buff中， 在生成aof的过程中，产生的处理操作会写入aof-rewrite-buff中， 最终合并。生成最终aof文件。
+	需要 appendonly yes appendfsync everysec aof策略
+	no-appendfsync-on-rewrite 参数表示 在 aof重写的过程中 是否append到当前aof文件中。 一般会设置为yes， 性能问题。 会出现的问题是， 在重写过程中是不会执行aof原有的操作， 如果出问题的话，重写失败，会导致这段时间的数据丢失。
+	
+18: 开发运维常见问题
+	1.fork是同步操作， 且操作时长跟内存有关，因此可能会导致阻塞，同时由于fork时间过长可能会超过timeout时间，导致超时。 通过 info：latest_fork_usec。 
+		解决办法：优先使用物理机，因为虚拟机进行fork操作会更慢， 控制redis最大可用内存，maxmemory 内存越大，fork越慢。 降低fork频率。
+	2：子进程问题
+		在redis中， bgsave bgrewriteaof 都会开启相应的子进程。 属于cpu密集型操作。
+		不能进行cpu绑定，不和cpu密集型部署， redis是单线程，容易影响主进程，导致主进程阻塞。
+		内存开销问题：
+		fork本身与主进程公用一个内存，但是当主进程有写操作的时候，会在子进程开启相应副本 copy-on-write， 占用相等的内存。
+		echo never-> /sys/kernel/mm/transparent_hugepage/enabled
+		硬盘开销：
+		不要和高硬盘负载服务部署在一起：存储服务，消息队列等。
+		no-appendfsync-on-rewrite yes 
+		
+	3.	AOF追加阻塞。
+19：Redis主从复制
+	从master流向 slave，数据流是单向的， 用于数据备份，读写分离， 分布式。
+	通过slaveof ip host 可以实现主从复制。
+	slaveof no one 则是删除主从关系。 需要注意的是， 并不会删除当前节点数据， 而是主节点以后更新的数据不会更新到当前节点了。 而当再次作为从节点使用时，第一步就是删除当前节点的所有数据。
+	
+	配置：https://blog.csdn.net/qq_20597727/article/details/83385737 通过 redis-cli -p 可以指定不同的server端口开启 对应的 client
+	主从复制的关键标识是：偏移量。
+	
+	全量复制：
+	1.从节点发起：psync ？ -1；
+	2.主节点接收到之后传输：FULLRESYNC {runId} {offset} 
+	3.从节点保存主节点信息
+	4.主节点进行bgsave保存当前快照
+	4.1：且在处理期间，将收到的数据存储在repl_back_buffer中
+	5.send RDB
+	6.send Buffer
+	7.flush old data， 从节点会清除之前的数据。
+	8.loadbuffer load RDB
+	部分复制：
+	1.从节点恢复连接，向主节点发送 psync {runId} {offset}
+	2.主节点在 send buffer内查找是否 offset在当前范围内， 如果在的话只需要发送部分数据即可。
+	3.如果已经超出范围，不难理解，只能够再次进行全量复制。
+	
+	主从复制 主要问题在于出现故障， 故障转移的问题。
+	
+	问题：
+	1.读写分离
+		复制数据延迟  可以通过偏移量进行监控
+		节点故障
+	2.主从配置不一致
+		maxmemory不一致， 导致数据丢失。
+		数据结构优化参数不同的时候， 如hash-max-ziplist-entries：导致主从内存不一致。
+	3.规避全量复制
+		主节点内存小，可以有效减小全量复制内容
+		当主节点重启，runId发生变化，此时需要进行全量复制， 通过故障转移 哨兵， 集群等方式。
+		复制缓冲区不足导致全量复制，也就是当从节点恢复网络连接，offset在主节点的buffer之外。 rel_backlog_size. 一般需要自行计算。
+	4.规避复制风暴
+		单主节点复制风暴 单机器复制风暴
+		主要是因为重启runId发生变化， 导致全量复制。
+20：sentinel
+	1.sentinel发现master出现故障
+	2.选出一个sentinel作为领导
+	3.选出一个slave作为新的master
+	4.通知其余slave新的master地址。
+	
+	sentinel是特殊的redis
+	配置： https://blog.csdn.net/qq_20597727/article/details/83385737
+	
+	客户端高可用： 需要遍历sentinel获取可用的 sentinel节点， 然后通过节点获取master的相关地址。
+	底层实现是通过 发布订阅的方式实现， 客户端订阅sentinel节点，获取master的变化。
+	java通过：jedisSentinelPool 获取。
+	
+	redisSentinel会执行三个定时任务：
+	1.每十秒 每个sentinel会对master 和 slave执行info
+		目的是获取新的slave节点， 确认主从关系， 存活状态等等。
+	2.每两秒每个sentinel节点会通过master节点的channel交换信息，通过发布订阅的方式进行。（如一个sentinel发布消息，其他监听。）因为对于主节点的状态判断，选举领导等信息都需要通过交互来进行。
+		通过 __sentinel__:hello频道进行交互，交互对节点的“看法”并交流自身信息。使得其他sentinel节点可以感知到当前sentinel节点。
+	3.每秒每个sentinel节点都会对其他节点及redis进行ping操作，心跳检测。
+	
+	主观下线和客观下线：
+	在sentinel节点进行ping的过程中， 如果超过 timeout配置时间没有ping通，则此时主观认为 master节点已经挂掉。
+	当超过 quorum（一般是节点数 / 2 + 1，最少是三个，一般是奇数。） 个sentinel节点认为master已经挂掉时，此时认为master已经下线， 寻找新的节点。
+	与其他sentinel沟通的命令是 sentinel is-master-down-by-addr,并且发起这个命令的 sentinel节点可以参与选举。
+	
+	领导者选举。
+	
+	只需要一个sentinel节点就可以完成故障转移， 在领导者选举之后就可以进行故障转移。 选择一个 slave节点 执行slave no one 变成master节点， 然后完成主从复制。 将原有的master节点标记为 slave，在其恢复后复制新的master节点数据。
+	可以通过 slave-priority 标记 slave节点的 优先级， 正常情况下一样， 如果需要的话 可以配置为不一样的优先级。
+	在Priority相等的情况下， 选择 offset更大的节点， 也就意味着数据更完整。
+	否则就选择 runId最小的节点。
+	
+	sentinel failover mastername 主动进行故障转移。
+	
+	读写分离下的高可用：
+	由于sentinel本身只监听了 master节点的情况并做了相应的故障转移。
+	如果读的 slave节点同样挂掉了， 那么需要仿照 JedisSentinelPool 做出相应的实现， 在 slave节点挂掉之后，可以自动切换到其他的从节点进行读操作。
+21：RedisCluster （在redisCluster中只有一个数据库 db0）
+	redis-cli -p {port} cluster nodes 获取所有关联节点信息
+	redis-cli -p {port} cluster info 获取单个节点基本信息
+	集群：
+		CPU 内存 网络 硬盘 限制。
+	数据分布：
+		顺序分布， hash分布
+		hash分布，主要用在键值与数据无关的情况下使用。不支持顺序访问，支持批量操作。
+		顺序分布，可顺序操作，易倾斜（访问及数据本身都容易出现倾斜），键值业务有关，不支持批量操作。
+	Hash分布：
+		1.节点取余分布 hash（key）% n；当节点伸缩，会导致数据迁移（一般采取翻倍扩容）
+		2.一致性hash。 节点伸缩， 数据迁移只需要 迁移一个数据的方式。 但无法保证负载均衡。 可能大量数据落在两者之间。 所以良好的hash算法，才是一致性哈希高性能的保证。
+		3.虚拟哈希分布：每一个节点负责一部分键（经过CRC16之后的）有序数据，并且知道其他节点负责的范围。 当发起请求，由服务端进行判断，究竟应该交给哪一个节点进行处理。
+	基本架构：
+		每个节点都会进行读写，并且节点之间都会进行相互通信（meet），需要指派槽， 并且存在主从节点， 不过是存在多个主节点。 所有节点之间会共享消息。
+		而客户端需要算出hash， 并且算出对应的slot hash(key) % 16383
+		数据分片，主从复制， 高可用。
+		
+	安装：
+		1：开启节点 （设置节点 cluster-enabled yes 等其他配置， 启动server） 2：meet 节点之间相互通信 3：指派槽 4：主从分配， 故障转移。
+		2：meet：redis-cli -p 7000； cluster meet 127.0.0.1 7001 ...分别meet所有端口 通过cluster nodes 可以查看当前已经 握手的 节点。 通过 cluster info 可以查看基本信息。
+		
+		start=$1
+		end=$2
+		port=$3
+		for slot in `seq ${start} ${end}`
+		do
+			echo "slot:${slot}"
+			#通过这句命令分配节点。
+			redis-cli -p ${port} cluster addslots ${slot}
+		done
+		3：主从分配： redis-cli -p 7003 cluster replicate 812481903e96e875d08090ea48c16922ffabe8f5
+		4. 通过redis-cli -c -p ${port} 进行连接
+	cluster工具安装：
+		安装ruby环境
+		https://rubygems.org/downloads/redis-4.0.3.gem
+		安装redis gem:
+		首先下载ruby gem， 然后在${RUBY_HOME}/ext/zlib  ruby extconf.rb  vim Makefile
+		#zlib.o: $(top_srcdir)/include/ruby.h #把这一行替换成下面一行
+		zlib.o: ../../include/ruby.h
+		保存之后 make && make install
+		切换到gem目录
+		执行： gem install -l reids.gem.${version}
+		在redis 的src目录下：
+		cp redis-trib.rb /usr/local/bin
+		
+		** 新版不再需要 redis-trib
+		** 可以使用 redis-cli --cluster help 查看相关命令(这里不确定是否仍然需要Ruby)
+		
+		如果需要更换 redis集群的相关配置， 需要删除 data目录下的 node config文件。
+		
+		redis-cli --cluster create --cluster-replicas 1 127.0.0.1:8000 127.0.0.1:8001 127.0.0.1:8002 127.0.0.1:8003 127.0.0.1:8004 127.0.0.1:8005 会自动进行槽分配。
+	集群伸缩：
+		加入节点： 
+			流程：新建节点， 通过 cluster meet 加入集群， 数据迁移
+			作用：扩容， 或作为从节点负责故障转移
+			操作：redis-cli --cluster addnode <options>
+			数据迁移： 
+				1.对目标节点发送 cluster setslot {slot} importing {sourceNodeId}, 
+				2.对源节点发送: cluster setslot {slot} migrating {targetNodeId}
+				3.对源节点循环执行 cluster getkeysinslot {slot} {count} 每次获取count个 key
+				4.在源节点执行 migrate {targetIp} {targetport} key 0 {timeout}
+				5.重复3 4 步骤， 直到所有的数据都迁移到目标节点。
+				6.向所有节点发送 cluster setslot {slot} node {targetNodeId} 通知对应的slot接收节点已经改变。
+		可以通过 reshard命令 进行数据迁移。
+		只需要输入 redis-cli --cluster reshard 就可以完成数据迁移。
+		
+		收缩节点：
+			如果需要迁移数据， 则迁移， 否则直接忘记节点。 cluster forget。
+			redis-cli --cluster reshard --cluster-from 7d2c590bc21f7fbe650be65c9a0e2028287c8d3b --cluster-to 812481903e96e875d08090ea48c16922ffabe8f5 --cluster-slots 1366 127.0.0.1 7000
+			需要对所有的slots做相应的数据迁移操作。
+			删除节点： redis-cli --cluster del-node 127.0.0.1:7000 7d2c590bc21f7fbe650be65c9a0e2028287c8d3b
+			在移除数据时，只需要移除主节点数据即可。 在下线时，需要先下线从节点， 再主节点。
+			
+	故障转移：
+		不需要sentinel，因为节点之间本身就会进行通信。
+		同样分为主观下线， 客观下线。
+		主观下线：ping不通，超过超时时间， 当前节点认为对应的故障节点出现问题，无法连接，标记为pfail 于是断开连接。
+		客观下线：半数以上持有槽的节点都标记对应节点为 pfail。
+			在节点之间进行通信时， 会将其他节点的pfail信息传递给 另一节点。 节点维护故障链表（存在有效时间）。 然后尝试下线， 下线成功后， 向集群广播下线消息。
+			而后， 通知故障节点的从节点触发故障转移的相关操作。
+		故障恢复：
+			1.资格检查， 检查从节点的最后通信时间， 如果超过一定时间， cluster-node-timeout * cluster-salve-validity-factor， 则取消资格。
+			2.按照 salve节点的 offset大小， 从大到小 依次进行选举， 使得 offset值更大的， 也就是数据更完整的有更高的选举权。
+			3.在这里是 其他的master主节点进行投票， 而在 sentinel中是 由 sentinel节点投票选举。
+			4.替换主节点： 需要salve no one 变成主节点， 然后 cluster del-node 删除原有主节点 及其负责的槽， 执行cluster addnode 将自身添加入集群， 之后， 分配槽。
+			5.向集群发送pong消息， 表明自身已经替换了其主节点。
+			6.当原有故障节点恢复时，在 不删除 node.conf 文件的情况下， 会自动加入节点。
+			
+	常见问题：
+		集群完整性：一般是关闭状态。cluster-require-full-coverage yes 一般配置为no
+			如果存在多个从节点的情况下， 仅关闭一个主节点并不能够使得集群fail， 因为会自动进行故障恢复， 选取从节点作为新的master
+		带宽消耗：
+			1.消息发送频率： 当节点发现与其他节点最后通信时间超过 cluster-node-timeout / 2 则会主动发送ping消息。
+			2.消息大小：slots槽数组2kb空间， 和整个集群的状态数据（10个节点约1kb）。
+			3.节点部署规模：机器越多且节点数越均匀， 可用带宽越高。
+		优化：
+			避免多个业务使用一个集群， 可以使用多集群。
+		pub/sub：
+			当一个节点发布消息，整个集群中所有节点都会收到消息， 带宽开销比较大。
+			当一个节点发送消息， 基于集群的， 连接至任何一个 节点的 client 只要订阅了该频道，都会收到消息， 这意味着， 发布消息的客户端， 会将消息发送给所有的 服务端节点。（又或者是发送给指定服务端， 在服务端自身交流数据。）
+		集群倾斜：
+			分为写倾斜， 读倾斜两种。
+			1.写倾斜
+				可用操作： 通过 redis-cli --cluster info可以打印出各个节点的存储情况。
+				cluster countkeysinslot {slot} 获取对应槽中键的个数。 可能是由于 hash_tag 导致的
+				redis-cli --bigkeys 可以查看big keys 。 最好在从节点执行。
+				配置不一致引起的内存不一致 如 ziplist
+			2.读倾斜
+				热键， 或 bigkey
+	集群读写分离：
+		1.当在从节点读写操作时， 会自动重定向到master节点读写。
+			需要在从节点每次重新连接之后必须输入 readonly， 在集群模式下， 尽量不使用读写分离。
+	Redis单机到集群的迁移：
+		官方工具中只提供：
+			单机-集群
+			不支持在线迁移， 不能进行写操作。
+			不支持断点续传
+		通过 redis-cli --cluster import 127.0.0.1:8000 --cluster-from 127.0.0.1:6379 --cluster-copy 数据迁移， 也可以使用 --cluster-replace
+		如果某节点key冲突， 会复制失败。 因此需要清空对应节点， 且如果某节点设为 readonly 需要改为 readwrite。
+		
+22： RedisCluster客户端
+	
+	moved异常：
+		当从客户端发起一个操作时，节点会计算相应的槽 节点，如果指向自身，进行操作， 如果不是 则返回 moved异常， 并告知对应的节点， 此时客户端需要手动重新发起操作。
+		可以通过 cluster keyslot {key} 查找到对应的 slot
+		127.0.0.1:7000> set php good
+		(error) MOVED 9244 127.0.0.1:7001
+		
+		而通过 redis-cli -c（cluster模式） -p {port} 连接之后， 任何操作， redis会自行进行节点跳转。
+	ask异常：
+		当正在迁移中， 发起相关的key操作， set get等
+	smart客户端：
+		从任意可执行节点 使用 cluster slots获取所有的节点信息。
+		将信息映射到本地，为每个节点创建相应的jedis pool， 当出现各种异常之后， 需要更新对应的 jedis pool信息。
+	JedisCluster使用：
+		需要 Set<HostAndPort> nodeList集合。
+	在Cluster中的批量操作：
+		1.串行mget
+			循环所有key 逐个操作。
+		2.串行IO
+			在本地做 CRC16， 分组， pipeline操作。
+		3.并行IO
+			将串行针对不同的节点，用不同的线程执行。
+		4.hash_tag
+			https://www.jianshu.com/p/c441b882c1c6
+			即在redis中， 如果key中存在 {}, 特殊符号， 则解析hash值时，会忽略其他部分。
+23：集群限制
+	批量操作有限制， mset mget必须在同一slot
+	key事务 和 lua操作的key必须在同一节点
+	集群模式只有db0
+	不支持树形 主从复制结构。
+	
+	大多数情况 redis-sentinel已经满足要求， 进行读写分离。
+	
+24：缓存的设计与使用
+	
+	1.缓存的收益与成本
+		收益：加速读写，降低后端负载压力。
+		成本：主要是缓存层与数据层数据不一致， 与更新策略有关。
+		使用场景：加速读， 降低后端负载， 大量的写合并，累积之后，更新至DB。
+	2.缓存的更新策略
+		1.LRU/LFU/FIFO算法剔除： 例如maxmemory-policy
+		2.超时剔除
+		3.主动更新
+	一般应该使用 超时剔除 加 主动更新结合，同时需要最大内存和淘汰策略兜底。
+	3.缓存穿透的问题
+		原因：当从 数据库中查找到的数据为空，不进行缓存之后，再度查找缓存， 依然为空， 又需要去数据库请求， 频繁发生。
+		解决：1.缓存空数据，同时设置key的过期时间。 2. 布隆过滤器
+	4.无底洞问题
+		核心：加机器 ！= 加性能
+		需要更多存储空间的时候， 是必然需要加机器的。
+		优化：命令本身优化， 减少网络通信次数， 降低接入成本（如连接池等）， 主要是从三个方面考虑， 服务端， 客户端， 通信。
+	5.热点key重建问题
+		在热点key的访问过程， 如果存在多个线程去访问热点key， 此时都没有获取到对应的key，都会进行缓存的重建过程， 查询数据库， 大量开销。
+		解决方法：1 互斥锁， 可以保证一致性，存在死锁的风险。 2：永不过期， 只加入逻辑过期时间， 内存开销，无法保证数据的一致性。 
+25：集群可视化工具 cacheCloud
+26：redis事务
+	https://www.cnblogs.com/kyrin/p/5967620.html
+	通过multi 开启事务， 在此期间加入的所有操作都会被加入执行队列中。
+	通过 exec 执行。
+	队列中的命令都会被执行， 如果出现错误会退出， 但不会回滚。
+	
+	也可以通过watch执行， 乐观锁， 只针对同一客户端 watch multi可以作为组合使用：
+	watch key
+	在watch之后进行multi操作， 在exec之前，key被修改， 此时， 跳过 multi操作。 需要用循环来处理， 直到返回ok为止。
+	在multi执行一次之后， watch即失效。
+	
+	而redis脚本是天然 事务的。
+	
+27：redis Lua
+	https://redisbook.readthedocs.io/en/latest/feature/scripting.html
+	1.eval命令的实现：
+		1.为输入脚本定义一个 Lua 函数。
+			所有被 Redis 执行的 Lua 脚本， 在 Lua 环境中都会有一个和该脚本相对应的无参数函数： 当调用 EVAL 命令执行脚本时， 程序第一步要完成的工作就是为传入的脚本创建一个相应的 Lua 函数。
+			举个例子， 当执行命令 EVAL "return 'hello world'" 0 时， Lua 会为脚本 "return 'hello world'" 创建以下函数：
+				function f_5332031c6b470dc5a0dd9b4bf2030dea6d65de91()
+					return 'hello world'
+				end
+			其中， 函数名以 f_ 为前缀， 后跟脚本的 SHA1 校验和（一个 40 个字符长的字符串）拼接而成。 而函数体（body）则是用户输入的脚本。
+			以函数为单位保存 Lua 脚本有以下好处：
+			执行脚本的步骤非常简单，只要调用和脚本相对应的函数即可。
+			Lua 环境可以保持清洁，已有的脚本和新加入的脚本不会互相干扰，也可以将重置 Lua 环境和调用 Lua GC 的次数降到最低。
+			如果某个脚本所对应的函数在 Lua 环境中被定义过至少一次，那么只要记得这个脚本的 SHA1 校验和，就可以直接执行该脚本 —— 这是实现 EVALSHA 命令的基础，稍后在介绍 EVALSHA 的时候就会说到这一点。
+			在为脚本创建函数前，程序会先用函数名检查 Lua 环境，只有在函数定义未存在时，程序才创建函数。重复定义函数一般并没有什么副作用，这算是一个小优化。
+
+			另外，如果定义的函数在编译过程中出错（比如，脚本的代码语法有错）， 那么程序向用户返回一个脚本错误， 不再执行后面的步骤。
+		2.执行这个 Lua 函数。
+			整个执行函数的过程如下：
+
+			将 EVAL 命令中输入的 KEYS 参数和 ARGV 参数以全局数组的方式传入到 Lua 环境中。
+			设置伪客户端（因为redis本身的命令交互都需要通过客户端来进行）的目标数据库为调用者客户端的目标数据库： fake_client->db = caller_client->db ，确保脚本中执行的 Redis 命令访问的是正确的数据库。
+			为 Lua 环境装载超时钩子，保证在脚本执行出现超时时可以杀死脚本，或者停止 Redis 服务器。
+			执行脚本对应的 Lua 函数。
+			如果被执行的 Lua 脚本中带有 SELECT 命令，那么在脚本执行完毕之后，伪客户端中的数据库可能已经有所改变，所以需要对调用者客户端的目标数据库进行更新： caller_client->db = fake_client->db 。
+			执行清理操作：清除钩子；清除指向调用者客户端的指针；等等。
+			将 Lua 函数执行所得的结果转换成 Redis 回复，然后传给调用者客户端。 -- 即return
+			
+	2.使用如下：
+		redis-cli
+		eval "return [[hello world]]" 0
+		或
+		script load "return [[hello world]]"
+		根据返回的 sha1 值执行
+		evalSHA "<args sha1>" 0
+		
+		如果直接使用脚本：
+		redis-cli --eval "{path}" 0
+		在集群中使用脚本同样需要注意： 当跨节点访问时的性能问题， 因为redis会自动重定向到其他节点。
+		call与pcall基本上一样。脚本报错时，call会直接报错，pcall不会报错，会把错误信息放到lua table 的err字段中。
+	3.数据类型转换
+		1.Redis to Lua conversion table.
+			Redis integer reply -> Lua number
+			Redis bulk reply -> Lua string
+			Redis multi bulk reply -> Lua table (may have other Redis data types nested)
+			Redis status reply -> Lua table with a single ok field containing the status
+			Redis error reply -> Lua table with a single err field containing the error
+			Redis Nil bulk reply and Nil multi bulk reply -> Lua false boolean type
+		2.Lua to Redis conversion table.
+			Lua number -> Redis integer reply (the number is converted into an integer)
+			Lua string -> Redis bulk reply
+			Lua table (array) -> Redis multi bulk reply (truncated to the first nil inside the Lua array if any)
+			Lua table with a single ok field -> Redis status reply
+			Lua table with a single err field -> Redis error reply
+			Lua boolean false -> Redis Nil bulk reply.
+			Lua boolean true -> Redis integer reply with value of 1.
+			
+27：布隆过滤器
+
+	1. 应用场景： 对于在 大集合中 判断 给定元素是否存在的方法.
+	2. 原理:
+		给定长度为 m 的全部为 0 的数据 如：0000 0000 0000 0000
+		给定hash函数 k个： h1 h2 h3 h4 h5
+		将数据集中的每一个数据都求取其 hash值,  将相应位次置为1, 有k个hash函数, 一般K位会被置为1, 结果为 1111 1000 0000 0000
+		对给定元素求 hash值 如： 0001 0001 0001 1100
+		则根据 m 数据, 中的相应位次是否为1, 进行比对. 如果都为1 表示已存在.
+		
+	2. 存在误差
+		对于 m长度, hash 函数为1个, 任意位次 值为1的概率是 1 / m, 当前位次为 0 的概率为 1 - 1 / m
+		当存在 k个hash函数, 当前位次为0的概率为 (1- 1/m)^k
+		对于n个数据集, 当前位次为 0的概率为 (1 - 1/m)^nk
+		当前位置不为0的概率为 1 - (1 - 1/m)^nk
+		对于一个新元素, 给定K个位置都不为0的概率为 (1 - (1 - 1/m)^nk)^k, 也即错误率
+		
+		对于 50亿数据, 当数据本身过大时, 将数据分化 之后存储在硬盘中, 然后读取, 这样就可以有一个比较长的
+		
+	3. 缺点：
+		
+		当数据量比较大， 要求误差率较低的时候， 要求越高 对内存的消耗也是越高的。
+		只能够构建本地布隆过滤器， 对待多个服务器中的多个容器， 是难以同步数据的。
+		
+28：Redis key value设计
+
+	1. key 一般使用 : 进行分隔
+	2. 如果可以的话 尽量使得value长度小于等于44字节.  此时其使用的存储类型为 emstr, 占用内存会小于raw
+	3. value 设计， 防止big key问题
+		big key：可能会导致网络拥塞， redis 拥塞， 反序列化消耗
+		
+		redis-cli --bigkeys
+		
+		debug object 可以拿到相关数据 ，但是有可能会引起redis阻塞， 用 llen zcard scard 等替代也是比较好的办法
+		
+	4. 在设计时 可以考虑 redis的 zipList（谨慎设置） intset相关特性
+	
+	5. 使用连接池时 需要开启 空闲检测相关参数
+	
+	6. 需要考虑 maxTotal maxIdle的设置
+	
+29：redis内存优化
+
+	消耗内存查看： info memory
+		used_memory: 表示存储当前数据使用了多少内存， 包括自身内存，大概800k，缓冲区内存， 数据内存，三部分组成
+		used_memory_rss: 从操作系统角度来看， redis使用了多少内存
+		
+	缓冲区： 可以通过 info clients / client list 查看
+		普通客户端缓冲区：
+			1. 输入缓冲区 强制为1G不可更改， 也就是多个客户端的输入 达到1G就会强制断开连接
+			2. 输出缓冲区 client-output-buffer-limit normal
+		slave缓冲区：建议值调大一点 client-output-buffer-limit slave
+		
+			因为存在主从复制的情况
+		
+		pubsub缓冲区：client-output-buffer-limit pubsub
+		
+	需要设置内存上限
+	
+	过期内存删除：
+		1. 懒删除策略， 即使用时去查找 如果过期则删除
+		2. 定时删除策略 扫描删除
+	内存溢出策略：
+		1. 默认策略， 也即 拒绝写策略。
+		2.allkeys-lru： 移除最近最少使用的key，最常用的策略；
+		3.allkeys-random：随机删除某个key，不建议使用；
+		4.volatile-lru：在设置了过期时间的key中，移除最近最少使用的key，不建议使用；
+		5.volatile-random：在设置了过期时间的key中，随机删除某个key，不建议使用；
+		6.volatile-ttl： 在设置了过期时间的key中，把最早要过期的key优先删除。
+	内存优化：
+		ziplist 
+		键能小尽量小
+	
+	overcommit_memory  控制内存申请.
+	
+30: 在 server.config 中 设置rename-command 重置一些敏感操作
+
+31. 使用Monitor 做统计分析
+		
+作者：_小咖喱黄不辣
+链接：https://www.jianshu.com/p/afb440a48aba
+来源：简书
+简书著作权归作者所有，任何形式的转载都请联系作者获得授权并注明出处。
+		
+自动化测试
+<dependencies>
+	<dependency>
+		org.testng
+		com.relevantcodes.extentreports
+	</dependency>
+</dependencies>
+
+1. 注解
+	
+	1.1 @BeforeMethod
+	1.2 @AfterMethod
+	1.3 @BeforeClass
+	1.4 @AfterClass
+	//在class执行之前执行.
+	1.5 @BeforeSuite
+	1.6 @AfterSuite
+	
+	//方法分组测试
+	1.7 @Test(enabled=false, groups="${groupname}") 表示忽略测试
+	1.8 @BeforeGroups("${groupname}")
+	1.9 @AfterGroups("${groupname}")
+	
+	//类分组测试
+	1.10 @Test(groups="${groupname}")
+	xml中配置如下
+	<suite>
+		<test>
+			<groups>
+				<run>
+					<!-- 指定相应分组的执行 -->
+					<include name="${groupname}" />
+				</run>
+			</groups>
+			<classes>
+				<class name="${className}" />
+			</classes>
+		</test>
+	</suite>
+	//异常测试
+	1.11 @Test(expectedException = ${exception.name})
+	//依赖测试
+	1.12 @Test(dependsOnMethods = ${methodName})
+	//参数化测试
+	1.13 @Test
+		 //指定传入参数名称
+		 @Parameters({"name", "age"})
+		 public void parameterTest(String name, String age) {
+		 
+		 }
+		 xml中配置如下
+		<suite name="${suiteName}">
+			<test>
+				<parameter name=${name} value=${name's value} />
+				<parameter name=${age} value=${age's value} />
+				<classes>
+					<class name="${className}" />
+				</classes>
+			</test>
+		</suite>
+		运行xml文件即可.
+	//参数化的第二种方法
+	1.14 
+		@Test(dataProvider="${providerName}")
+		function ...
+		
+		@DataProvider(name="${providerName}")
+		public Object[][] function() {
+			return new Object[][] {
+			
+			};
+		}
+		
+		//或者根据不同方法提供不同参数
+		@DataProvider(name="${providerName}")
+		public Object[][] function(Method method) {
+			//根据方法名不同, 返回不同结果.
+		}
+		
+	//多线程测试
+	1.15
+		//分别指定方法执行的次数 和 线程数.
+		@Test(invocationCount=${how many times will be invocated}, threadPoolSize=${poolSize})
+		//xml的方式
+		//parallel 指定多线程级别. tread-count 指定线程数
+		//methods 表示所有用例都可以在不同的线程下去执行.
+		//tests 级别表示 不同的 testTag 可以在不同的 线程下执行.
+		//classs 相同classTag 在同一线程执行
+		<suite name="suiteName" parallel="[methods] | " thread-count="${threadNumber}"></suite>
+	//超时
+	1.16
+		//在多久内执行完成.
+		@Test(timeOut=${timeOut mls})
+		
+2. 工具 ExtendReport
+3. 集成平台 Jenkins
+
+
+
+Storm  SparkStreaming选择：
+
+	Storm更健壮, 对于数据的错误处理等保障更强大, 这依赖于其 ack机制, 同时也依赖于Zk, 主从节点相互通信等等机制问题, 就是在自主容错性处理与 故障恢复比 Spark更优秀, 同时可以动态调整机器资源等其他。几乎不存在延迟, 当然，
+	这一点在 structredStreaming的优势并不是太过明显.
+	同时Storm适合于复杂的业务逻辑处理, 而非复杂的数据处理过程.
+	对于复杂的计算而言, Spark 更合适, 同时Spark生态圈 之间可以互补, 相互依赖也更为简单.
+	
+	
+	
+	
+influxDB:
+
+存疑：
+1. Series 概念定义好像有点问题, 在官方文档中 定义为 measurement, tag set, field key。 但是在官方文档的其他地方 却表现出来是用 measurement， tagset， rp。
+而单条数据的唯一性 则是 series + timestamp。
+
+注意：
+2. 在 influxDB中，其数据结构设计有点类似于MYSQL， 但不能出现多表关联等等特殊处理方式， 即在一个表中有完整的数据。 不要通过一张表去查询另一个表数据。 而是应该给出条件，直接查询。
+3. InfluxDB timestamps must be in UNIX epoch (GMT) or formatted as a date-time string valid under RFC3339.
+4. 在influx中，目前最好是选择 flux 进行相关操作， 而非 influxQL， Flux is the primary language for working with data in InfluxDB 2.0 OSS (currently in beta) and InfluxDB Cloud 2.0, 为了以后升级考虑， 最好使用这种方式。
+且 flux支持的操作要多于 influxQL。
+5. 对删除操作， 可以删除series 而不能根据 field 删除一部分特定的点， 如果需要删除的话， 需要根据对应的field查找到 timestamp， 而后根据timestamp 删除对应的数据。
+6. 不支持对 tag key 更新 以及 tags进行删除。
+7. 当插入数据时， 需要根据时间进行升序排序， 如果数据时间顺序是打乱的， 那么会导致比较明显的性能下降。
+8. 可以通过多个客户端对数据进行写入操作。但是当数据库压力较大时， 有可能查询到的数据不是最新的。
+9. tag values 只能够是string类型
+
+Schema：
+1. 对于常规查询 元数据标签存储到 tags中。
+2. 当打算使用group by 时 也需要存储字段到 tags中。
+3. 如果打算使用 influxQL则存储到 fields中。
+4. 存储数值类值， 需要存储到 fields中。
+5. 如果在tag 或 field key中存在特殊符号， a-Z 以外， 在influxQL查询时， 需要用双引号， 而在 flux中则需要 括号
+6. 当 Series数量较大时（通过 tag set， measurement， 或许还有 field key 区分），  series cardinality（标识为： 数据库， measurement， Series key）也会增多， 这是 influxDB的主要开销。在内存受限的情况下， 需要考虑tag的设计。
+7. tag和field key尽量不要使用相同的。
+8. 单条tag value中， 不要包含太多信息， 这样就可以避免通过正则进行数据查询。
+9. 对于 数据过期删除， 会在整个shard group都过期之后才删除数据。
+10. 当使用过滤模式的时候， 需要设置 shard duration 和 过滤时间一致。
+11. 在写入历史数据时， 尽量设置长一点的 shard group duration ， 避免创建太多的shard group
+12. 一般一批次会写入 5000~10000个点， 已按照时间排序的点。
+
+CQ：
+
+当 Every 大于 GroupByTime， 则会间隔 Every interval 统计 now() - Every。
+当 For 小于 GroupByTime 或 Every 时， 会抛出异常。
+
+InfluxQL：
+
+measurement, field_key, tag_key, db, rp 使用双引号， 值一般使用单引号
+
+SELECT：
+
+	SELECT <field_key>[,<field_key>,<tag_key>] FROM <measurement_name>[,<measurement_name>]
+
+	SELECT * 查询所有
+
+	SELECT "<field_key>" 指定field
+
+	SELECT "<field_key>","<field_key>" 多个field
+
+	SELECT "<field_key>","<tag_key>"  指定field tag
+
+	SELECT "<field_key>"::field,"<tag_key>"::tag 指定key所属的 type， 是tag 或是 field 一般存在同名时使用， 但在设计上需要尽量避免重名。
+
+	SELECT_clause <field_key>::<type> FROM_clause 查找特定类型的数据 float, integer, string, or boolean
+	
+	SELECT *::field FROM
+
+ISSUE：
+
+	1. SELECT 必须至少包含一个field
+
+支持算术：
+
+包括： + - * / %， 位 与 或 异或.
+
+支持正则：
+
+	field keys 和 tag keys 在 Select 后
+
+	measurements 在 From 后
+
+	tag values 和 string field values 在 where后 （要求是string类型的 field value）
+
+	tag keys 在Group By 之后。
+
+	SELECT /<regular_expression_field_key>/ FROM /<regular_expression_measurement>/ WHERE [<tag_key> <operator> /<regular_expression_tag_value>/ | <field_key> <operator> /<regular_expression_field_value>/] GROUP BY /<regular_expression_tag_key>/
+
+	/<regular_expression>/::[field | tag] 不支持
+
+	不能使用在 db， rp 以及 where 后 非字符串类型的 field value中
+
+当正在用在 where 匹配中时， =~ 表示正确匹配， ！~表示取反。
+
+FROM：
+
+	FROM <measurement_name>
+	
+	FROM <measurement_name>,<measurement_name>
+	
+	FROM <database_name>.<retention_policy_name>.<measurement_name>
+	
+	FROM <database_name>..<measurement_name> 指定的 db中的 default 的 rp
+	
+引号：
+
+	[A-z,0-9,_] 之外的需要使用引号
+	
+
+WHERE：
+
+	SELECT_clause FROM_clause WHERE <conditional_expression> [(AND|OR) <conditional_expression> [...]]
+	
+	conditional_expression 必须是 fields, tags, and timestamps.
+	
+	但是对于 timestamps 不能使用 or 否则返回空值。
+	
+	field：
+	
+		支持 > < >= <= != <> 正则， 算术
+		
+		当 field value 为 String 类型时， 需要用单引号引起来 要比较的value。 field_key <operator> ['string' | boolean | float | integer]
+		
+	tag：
+	
+		支持 = != <>， 需要用单引号引起来 要比较的value。 tag_key <operator> ['tag_value']
+		
+GROUP BY：
+	
+	SELECT_clause FROM_clause [WHERE_clause] GROUP BY [* | <tag_key>[,<tag_key]]
+	
+	GROUP BY * group by 所有的tags
+
+	GROUP BY <tag_key>
+
+	GROUP BY <tag_key>,<tag_key>
+
+	SELECT <function>(<field_key>) FROM_clause WHERE <time_range> GROUP BY time(<time_interval>),[tag_key] [fill(<fill_option>)]
+	
+	GROUP BY time()
+	
+	SELECT <function>(<field_key>) FROM_clause WHERE <time_range> GROUP BY time(<time_interval>,<offset_interval>),[tag_key] [fill(<fill_option>)] offset_interval可以为正/负， 正表示向后推。
+	
+	group 可以同时by time 和 tag
+	
+	fill 策略： liner 随时间线性， none 什么都不返回， null 无数据，仅返回timestamp， previous                                 
+	
+INTO：
+
+	SELECT_clause INTO <measurement_name> FROM_clause [WHERE_clause] [GROUP_BY_clause]
+	
+	INTO <database_name>.<retention_policy_name>.<measurement_name>
+	
+	INTO <database_name>.<retention_policy_name>.:MEASUREMENT FROM /<regular_expression>/
+	
+	EXAMPLES：
+	
+		重命名database： SELECT * INTO "copy_NOAA_water_database"."autogen".:MEASUREMENT FROM "NOAA_water_database"."autogen"./.*/ GROUP BY *
+		
+		与上面类似， 不过原database中的tags变成了 field： SELECT * INTO "copy_NOAA_water_database"."autogen".:MEASUREMENT FROM "NOAA_water_database"."autogen"./.*/
+		
+	在做这种操作的时候， 建议加上where限制时间， 以保证不会超出内存。
+	
+ORDER BY:
+
+	默认是按照时间升序排序的。
+	
+	SELECT_clause [INTO_clause] FROM_clause [WHERE_clause] [GROUP_BY_clause] ORDER BY time DESC
+	
+LIMIT， SLIMIT：
+	
+	SELECT_clause [INTO_clause] FROM_clause [WHERE_clause] [GROUP_BY_clause] [ORDER_BY_clause] LIMIT <N>
+	
+	limit 就是常规查询中， 进行limit限制。
+	
+	SELECT_clause [INTO_clause] FROM_clause [WHERE_clause] GROUP BY *[,time(<time_interval>)] [ORDER_BY_clause] SLIMIT <N>
+	
+	SLIMIT 表示查询中， 查找前几个 Series 的所有点， Series key 为 tag set， measurement。
+	
+OFFSET， SOFFSET
+	
+	SELECT_clause [INTO_clause] FROM_clause [WHERE_clause] [GROUP_BY_clause] [ORDER_BY_clause] LIMIT_clause OFFSET <N> [SLIMIT_clause]
+	
+	OFFSET 指定了偏移量，与limit联用， 起到了分页的功能。 即排除掉 OFFSET 之后， 返回 LIMIT条数据。
+	
+	SELECT_clause [INTO_clause] FROM_clause [WHERE_clause] GROUP BY *[,time(time_interval)] [ORDER_BY_clause] [LIMIT_clause] [OFFSET_clause] SLIMIT_clause SOFFSET <N>
+	
+	SOFFSET 与上类似。
+	
+TimeZone：
+
+	SELECT_clause [INTO_clause] FROM_clause [WHERE_clause] [GROUP_BY_clause] [ORDER_BY_clause] [LIMIT_clause] [OFFSET_clause] [SLIMIT_clause] [SOFFSET_clause] tz('<time_zone>')
+	
+	默认是UTC， 可以调整为各个时区的显示方式。比如 'America/Chicago'
+	
