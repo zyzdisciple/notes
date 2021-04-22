@@ -171,7 +171,8 @@ cluster-wide: 被标记为 cluster-wide 的参数也属于动态参数，修改�
 
 * **log.flush.interval.ms**
 
- > log.flush.interval.ms, 与 log.flush.interval.messages 类似, 不过一个是从时间, 一个是从数据量的层面来进行衡量的.
+ > log.flush.interval.ms, 与 log.flush.interval.messages 类似, 不过一个是从时间, 一个是从数据量的层面来进行衡量的, 因此当这个参数配置为null, 事实上就是将写数据的任务完全交给了磁盘. 至于多久系统会进行一次flush呢? 
+ > 参考链接: [Page Cache的落地问题](https://www.jianshu.com/p/ed5900d31f1f)
  >
  > 默认值: null
  >
@@ -330,7 +331,33 @@ cluster-wide: 被标记为 cluster-wide 的参数也属于动态参数，修改�
  > 统计 Broker 上的 Partition 个数。
  >
  > Partition 个数 / 不相等的 Partition 个数，如果大于 10%，则触发重平衡操作；反之，则不做任何处理。
- 
+
+* group.initial.rebalance.delay.ms
+
+ > group.initial.rebalance.delay.ms,  在进行第一次rebalance之前，group 协调器会等待多久， 等待新的consumer加入当前group， 可以用来减少rebalance频次， 但是会延长启动时间。
+ >
+ > 默认值: 3000 (3 seconds)
+ >
+ > read-only
+
+* *group.max.session.timeout.ms*
+
+ > group.max.session.timeout.ms, 对于已经注册的 consumer, 其session的最大超时时间,  如果给定了更长的超时时间, 则允许consumer 处理消息的时间更长. 但代价是可能需要更长的时间, 才能够检测出来问题.
+ >
+ > 默认值: 1800000 (30 minutes)
+ >
+ > read-only
+
+* *group.min.session.timeout.ms*
+
+ > group.min.session.timeout.ms, 对于已经注册的 consumer, 其session的最小超时时间, 如果配置的更小, 则是 会更频繁地发送心跳, 加大broker资源的开销.
+ >
+ > *说说个人对这两个参数的理解, 但是没有代码作为依据, min这个参数, 决定了 broker与consumer之间心跳互动的最短间隔, 也即consumer多久发送一次心跳, 而max则表示了, 在多久没有收到consumer的心跳时会判断当前consumer已经超时.*
+ >
+ > 默认值: 6000 (6 seconds)
+ >
+ > read-only
+
 * background.threads
 
  > background.threads, 为各种各样后台任务所开启的最大线程数, 默认为10.
@@ -407,7 +434,7 @@ cluster-wide: 被标记为 cluster-wide 的参数也属于动态参数，修改�
  >
  > cluster-wide
 
- * log.roll.ms
+* log.roll.ms
   
  > log.roll.ms,  功能与log.roll.hours一致, 单位不同, 同时UpdateMode是cluster-wide
  >
@@ -528,6 +555,14 @@ cluster-wide: 被标记为 cluster-wide 的参数也属于动态参数，修改�
  > read-only
 
  > 以上可以参考kafka 副本机制. 就会明白 ISR, HW这些概念.
+
+* fetch.max.bytes
+
+ > fetch.max.bytes, 对于单次的fetch请求, 最大会返回的数据大小, 最小要求是 1024
+ >
+ > 默认值: 57671680 (55 mb)
+ >
+ > read-only
 
 * offset.metadata.max.bytes
 
@@ -815,6 +850,42 @@ cluster-wide: 被标记为 cluster-wide 的参数也属于动态参数，修改�
  >
  > read-only
 
+* fetch.purgatory.purge.interval.requests
+ 
+ > fetch.purgatory.purge.interval.requests, 
+
+* group.max.size
+
+ > group.max.size,  一个consumer group中最大能容纳多少 consumers.
+ >
+ > 默认值:	2147483647
+ >
+ > read-only
+
+* inter.broker.listener.name
+
+ > inter.broker.listener.name, 在两个broker之间交流所使用的 listener的名称, 如果没有设置, 则会由 security.inter.broker.protocol决定, 需要注意, 这两个参数不能同时设定.
+ >
+ > 默认值: null
+ >
+ > read-only
+
+* log.cleaner.backoff.ms
+
+ > log.cleaner.backoff.ms,  当没有日志要清理的时候, 线程休眠时间.
+ >
+ > 默认值: 15000 (15 seconds)
+ >
+ > cluster-wide
+
+* log.cleaner.dedupe.buffer.size
+
+ > log.cleaner.dedupe.buffer.size, 对于所有用来检查重复日志的线程, 所能够消耗的总内存.
+ >
+ > 默认值: 134217728 (128mb)
+ >
+ > cluster-wide
+
 DEPRECATED 参数:
 * advertised.host.name
 
@@ -847,6 +918,9 @@ DEPRECATED 参数:
 
  kafka事务原理补充
 
- kafka purgatory 补充.
+ kafka purgatory 补充. 
+
+ > 相关参数: delete.records.purgatory.purge.interval.requests, fetch.purgatory.purge.interval.requests
 
  时间轮的概念及实现.
+
